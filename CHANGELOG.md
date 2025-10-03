@@ -63,3 +63,8 @@
 - Renamed "Crystals" → **Chaos shards** (EN) / **Осколки Хаосу** (UK) in the optional line.
 - `/tutorial` intro now shows current *level* and *energy*, and clarifies that XP comes from quests.
 - Version bump; all previous features preserved.
+
+## 0.0.13
+- Fix build errors: correct `escapeMarkdown` regex and replacement; fix `sendMe` `lines.join("\n")`.
+- Ensure `session<SessionData, MyContext>` is used (TypeScript generics).
+- Keep `/restart`, dynamic tutorial, hidden shards/skills, and seeded quests.

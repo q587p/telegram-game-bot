@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.12";
+export const VERSION = "0.0.13";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -124,7 +124,7 @@ const bot = new Bot<MyContext>(token);
 
 // Sessions: persisted under data/sessions/
 const storage = new FileStorage<SessionData>(join(process.cwd(), "data", "sessions"));
-bot.use(session<SessionData>({ initial: () => defaultSession(), storage }));
+bot.use(session<SessionData, MyContext>({ initial: () => defaultSession(), storage }));
 
 // i18n: uk default, locales/*.ftl
 const i18n = new I18n<MyContext>({
@@ -149,7 +149,7 @@ function displayNameFull(ctx: MyContext): string {
 }
 function escapeMarkdown(text: string): string {
   // Escape Telegram Markdown special chars: *, _, `, [, ], and backslash
-  return text.replace(/([\*_`\[\]\])/g, '\$1');
+  return text.replace(/([\*_`\[\]\\])/g, '\$1');
 }
 function percent(passed: number, total: number): string {
   if (total <= 0) return "0.00%";
@@ -368,6 +368,31 @@ async function sendMe(ctx: MyContext) {
     await ctx.reply(ctx.t("me-notice"));
   }
   const skillsCount = Object.values(p.skills).filter(v => v >= 1).length;
+  const lurkLevel = (p.skills.lurk ?? 0).toFixed(2);
+
+  const lines: string[] = [];
+  lines.push(ctx.t("me-base", {
+    name,
+    level: String(p.level),
+    percent: pct,
+    xp: String(p.xp),
+    xp_target: String(p.xpTarget),
+    stamina: String(p.stamina),
+    stamina_max: String(p.staminaMax),
+  }));
+
+  if (p.crystalsFound > 0) {
+    lines.push(ctx.t("me-line-shards", { shards_found: String(p.crystalsFound) }));
+  }
+  if (skillsCount > 0) {
+    lines.push(ctx.t("me-line-skills", { skills_count: String(skillsCount), lurk_level: String(lurkLevel) }));
+  }
+
+  const text = lines.join("
+");
+  await ctx.reply(text, { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
+}
+const skillsCount = Object.values(p.skills).filter(v => v >= 1).length;
   const lurkLevel = (p.skills.lurk ?? 0).toFixed(2);
 
   let lines: string[] = [];
