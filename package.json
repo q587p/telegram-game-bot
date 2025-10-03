@@ -1,13 +1,12 @@
 {
   "name": "telegram-game-bot",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/bot.js",
-
     "preversion": "npm run typecheck",
     "version": "node scripts/update-version-banner.cjs && git add src/bot.ts",
     "postversion": "git push && git push --tags"
