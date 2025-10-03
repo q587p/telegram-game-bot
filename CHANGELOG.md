@@ -47,3 +47,8 @@
   - `tsc -w` writes to `dist/`
   - `nodemon` runs `node dist/bot.js` and restarts on changes
 - This avoids ESM loader quirks on Node 20/Windows and plays nice with OneDrive paths.
+
+## 0.0.10
+- Fix TypeScript syntax issues: remove stray first-line char and replace Python-style `r"..."` in `escapeMarkdown` with proper TS string.
+- Add `/_/` and `**/_/` to `.gitignore` to ignore local `_` folders.
+- Dev flow remains compile-then-run (tsc→nodemon).
