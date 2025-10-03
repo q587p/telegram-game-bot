@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm run build && concurrently -k -n BUILD,RUN -c auto \"tsc -w\" \"nodemon -q --watch dist dist/bot.js\"",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/bot.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepare": "husky",
-    "push:run": "powershell -ExecutionPolicy Bypass -File ./tools/push-and-restart.ps1 -Branch main"
+    "start": "node dist/bot.js",
+
+    "preversion": "npm run typecheck",
+    "version": "node scripts/update-version-banner.cjs && git add src/bot.ts",
+    "postversion": "git push && git push --tags"
   },
   "dependencies": {
     "grammy": "^1.38.2",

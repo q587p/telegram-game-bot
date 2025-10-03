@@ -51,3 +51,10 @@ overlay-*.zip
 *.overlay.zip
 *.patch
 *.diff
+# Release helper files
+CHANGELOG-append-*.txt
+HOWTO-*.txt
+overlay-*.zip
+*.overlay.zip
+*.patch
+*.diff
