@@ -121,3 +121,29 @@ aether-granted = ✨ You received { $gained } Aether. Total: { $aether }.
 
 # Quest events
 quest-portal-found = 🔮 You sense a faint portal shimmer nearby… Keep lurking to reveal it!
+
+stats-avg-moves = ⏱️ Avg moves to find: { $avg_moves }
+
+skill-lurk-level-up = 🧠 Lurking reached level { $level }.
+
+skill-move-level-up = 🦶 Moving reached level { $level }.
+
+quest-gain-xp = 📖 You learned arcana (cognitio arcana) and gained +1 XP.
+
+quest-fun-no-gain = 🎭 You spent time on nonsense. Fun, but no XP gained.
+
+quest-find-aether = ✨ You found { $gained } Aether. Total: { $total }.
+
+quest-portal-found2 = 🔮 A portal to the Fields of Chaos shimmers before you.
+
+quest-portal-insufficient = 🔮 You see a portal, but your Aether ({ $aether }) is insufficient to open it (need 13).
+
+portal-enter = Enter portal
+
+portal-skip = Go on
+
+portal-entered = 🌀 You step into the portal…
+
+portal-search-placeholder = (search starts here — implement startChaosSearch(ctx))
+
+portal-skipped = You ignore the portal and its chaotic emanations. Perhaps for the best.

@@ -1,0 +1,20 @@
+# Default: text files use LF in repo & working tree
+*           text=auto eol=lf
+
+# Keep CRLF for Windows scripts
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# Binary files (no EOL normalization)
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.pdf       binary
+*.zip       binary
+*.7z        binary
+*.ico       binary
+*.mp3       binary
+*.mp4       binary
+*.wav       binary
+*.mov       binary

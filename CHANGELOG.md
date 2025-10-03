@@ -27,3 +27,8 @@
 - Hidden command `/aether`: grants 13 Aether for testing.
 - Boot logs: print `[BOOT] Launching Telegram bot v0.0.23 …` and `🚀 Server started — Telegram bot v0.0.23 (long polling)`.
 - Keep EN/UK translations for `aether-granted` and `quest-portal-found` in locales.
+## 0.0.24
+- Quest rework: randomized outcomes (+1 XP / fun / +1..5 Aether / Portal).
+- Portal flow: enter (cost 13 Aether) or skip; on enter, call existing 55 search.
+- Robust session/profile init in quest module (fixes ctx.session undefined).
+- ESM import fix: use \import "./quest-rework.js"\ with NodeNext/Node16 resolution.

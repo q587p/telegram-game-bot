@@ -29,3 +29,32 @@ Thumbs.db
 
 # Misc
 *.zip
+
+# Dev helper scripts / one-off patch files
+apply-game-update.mjs
+fix-typecheck.mjs
+normalize-eol.sh
+normalize-eol.cmd
+README-NORMALIZE.md
+README-QUICKSTART-PUBLIC.md
+# One-off helper scripts
+*.mjs
+!vite.config.mjs
+# One-off helper scripts
+apply-game-update.mjs
+fix-typecheck.mjs
+check-i18n-keys.mjs
+# Release helper files
+CHANGELOG-append-*.txt
+HOWTO-*.txt
+overlay-*.zip
+*.overlay.zip
+*.patch
+*.diff
+# Release helper files
+CHANGELOG-append-*.txt
+HOWTO-*.txt
+overlay-*.zip
+*.overlay.zip
+*.patch
+*.diff
