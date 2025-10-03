@@ -12,9 +12,10 @@ import { mkdirSync, existsSync } from "node:fs";
 import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
-console.log(`[BOOT] Launching Telegram bot v${VERSION} …`);
 // ================== Version ==================
 export const VERSION = "0.0.23";
+
+console.log(`[BOOT] Launching Telegram bot v${VERSION} …`);
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -27,7 +28,10 @@ type Profile = {
   staminaMax: number;
   lastStaminaTs: number; // ms epoch, for auto-regen
   aether: number;
-  skills: Skills;        // e.g., { lurking: 0, moving: 0 }
+  skills: Skills;          movesTotal: number;
+  searchRuns: number;
+  _runMoves: number; // transient counter per run
+// e.g., { lurking: 0, moving: 0 }
   crystalsFound: number; // Chaos shards
   questsStarted: number;
   questsSucceeded: number;
@@ -53,7 +57,9 @@ type SessionData = {
   locale?: "uk" | "en";
   profile: Profile;
   quest?: Quest;
-};
+
+  chatId?: number;
+}
 
 type MyContext = Context & SessionFlavor<SessionData> & I18nFlavor;
 
@@ -71,12 +77,15 @@ function defaultProfile(): Profile {
     staminaMax: 5,
     lastStaminaTs: nowMs(),
     aether: 0,
-    skills: { lurking: 0, moving: 0 },
+    skills: { lurking: 0, moving: 0 , move: 0 },
     crystalsFound: 0,
     questsStarted: 0,
     questsSucceeded: 0,
     questsFailed: 0,
     seenStart: false,
+    movesTotal: 0,
+    searchRuns: 0,
+    _runMoves: 0,
     lastSeenVersion: undefined,
   };
 }
@@ -146,6 +155,10 @@ const i18n = new I18n<MyContext>({
 });
 bot.use(i18n);
 
+
+
+// capture chat id for broadcasts
+bot.use(async (ctx, next) => { if (ctx.chat?.id) ctx.session.chatId = ctx.chat.id; await next(); });
 // ================== Utilities =================
 function displayNameFull(ctx: MyContext): string {
   const u = ctx.from;
@@ -443,6 +456,57 @@ async function sendMe(ctx: MyContext) {
 }
 
 // ================== Commands ==================
+
+bot.callbackQuery("portal_enter", async (ctx) => {
+  const p = ctx.session.profile;
+  if ((p.aether||0) < 13) { await ctx.answerCallbackQuery({ text: ctx.t("quest-portal-insufficient", { aether: String(p.aether||0) }) }); return; }
+  p.aether -= 13;
+  p._runMoves = 0;
+  await ctx.editMessageText(ctx.t("portal-entered"));
+  const scs = (globalThis as any).startChaosSearch;
+if (typeof scs === "function") { await scs(ctx as any); } else { await ctx.reply(ctx.t("portal-search-placeholder")); }
+});
+bot.callbackQuery("portal_skip", async (ctx) => {
+  await ctx.editMessageText(ctx.t("portal-skipped"));
+  await sendGreeting(ctx);
+});
+
+
+bot.command("quest", offerQuest);
+
+
+
+// ============ Quest rework ============
+async function offerQuest(ctx: any){
+  const roll = Math.random();
+  if (roll < 0.25){
+    // a) +1 XP
+    ctx.session.profile.xp += 1;
+    await ctx.reply(ctx.t("quest-gain-xp"));
+  } else if (roll < 0.5){
+    // b) fun but no xp
+    await ctx.reply(ctx.t("quest-fun-no-gain"));
+  } else if (roll < 0.75){
+    // c) find 1..5 Aether
+    const gain = 1 + Math.floor(Math.random()*5);
+    ctx.session.profile.aether = (ctx.session.profile.aether || 0) + gain;
+    await ctx.reply(ctx.t("quest-find-aether", { gained: String(gain), total: String(ctx.session.profile.aether) }));
+  } else {
+    // d) portal to Chaos
+    const a = ctx.session.profile.aether || 0;
+    if (a < 13){
+      await ctx.reply(ctx.t("quest-portal-insufficient", { aether: String(a) }));
+    } else {
+      const { InlineKeyboard } = await import("grammy");
+      const kb = new InlineKeyboard()
+        .text("🌀 " + ctx.t("portal-enter"), "portal_enter")
+        .text("➡️ " + ctx.t("portal-skip"), "portal_skip");
+      await ctx.reply(ctx.t("quest-portal-found2"), { reply_markup: kb });
+    }
+  }
+}
+
+
 bot.command("version", async (ctx) => {
   await ctx.reply(`🤖 Version: ${VERSION}`);
 });
@@ -508,15 +572,14 @@ bot.command("fixmenu", async (ctx) => {
   await ctx.reply("✅ Commands menu refreshed.");
 });
 
-bot.command(
-
 // hidden debug command — grant 13 aether
 bot.command("aether", async (ctx) => {
   const p = ctx.session.profile;
   p.aether = (p.aether ?? 0) + 13;
   await ctx.reply(ctx.t("aether-granted", { gained: "13", aether: String(p.aether) }));
 });
-"start", async (ctx) => {
+
+bot.command("start", async (ctx) => {
   if (!(ctx as any).session.locale) {
     await ctx.reply((ctx as any).t("start-lang-intro"));
     await ctx.reply((ctx as any).t("choose-language"), { reply_markup: langKb });
@@ -524,6 +587,7 @@ bot.command("aether", async (ctx) => {
   }
   await setMyCommands(); // ensure menu on /start
   await sendGreeting(ctx);
+  await ctx.reply(ctx.t("stats-avg-moves", { avg_moves: String((ctx.session.profile.searchRuns ? Math.round((ctx.session.profile.movesTotal / ctx.session.profile.searchRuns) * 10)/10 : 0)) }));
 });
 
 // ================== Language callbacks ========
@@ -684,5 +748,58 @@ async function setMyCommands() {
 
 // ================== Start ======================
 bot.start().then(async () => {
-  await setMyCommands();
-  console.log(`🚀 Server started — Telegram bot v${VERSION} (long polling)`);});
+  
+  console.log(`🚀 Server started — Telegram bot v${VERSION} (long polling)`);
+
+
+// ============ Graceful shutdown broadcast ============
+async function broadcastMaintenance(bot: any){
+  try {
+    const { readdirSync, existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const dir = join(process.cwd(), "data", "sessions");
+    if (!existsSync(dir)) return;
+    const files = readdirSync(dir).filter(f => f.endsWith(".json"));
+    const seen = new Set();
+    for (const f of files){
+      try {
+        const s = JSON.parse(await (await import("node:fs/promises")).readFile(join(dir, f), "utf-8"));
+        const chatId = s?.chatId;
+        if (chatId && !seen.has(chatId)){
+          seen.add(chatId);
+          await bot.api.sendMessage(chatId, "⚙️ Бот зупиняється на технічні роботи. Будь ласка, зачекайте на перезапуск.");
+        }
+      } catch {}
+    }
+  } catch (e) { console.error("broadcastMaintenance error:", e); }
+}
+["SIGINT","SIGTERM"].forEach(sig => {
+  try {
+    process.on(sig, async () => {
+      await broadcastMaintenance(bot);
+      process.exit(0);
+    });
+  } catch {}
+});
+
+await setMyCommands();
+  });
+
+
+const SKILL_STEP_BASE = 0.2; // was 0.1
+
+
+
+// ============ Moves & skill helpers ============
+function recordMove(ctx: any){ try { ctx.session.profile._runMoves = (ctx.session.profile._runMoves || 0) + 1; } catch {} }
+function finalizeRunOnShard(ctx: any){ try { const p = ctx.session.profile; p.movesTotal = (p.movesTotal||0) + (p._runMoves||0); p.searchRuns = (p.searchRuns||0) + 1; p._runMoves = 0; } catch {} }
+
+function maybeAnnounceIntegerSkill(ctx: any, name: "move" | "lurk", value: number){
+  const intPart = Math.floor(value + 1e-9);
+  const isExactInt = Math.abs(value - intPart) < 1e-9;
+  if (isExactInt && intPart >= 1){
+    const label = name === "move" ? ctx.t("skill-move-level-up", { level: String(intPart) }) : ctx.t("skill-lurk-level-up", { level: String(intPart) });
+    ctx.reply(label);
+  }
+}
+
