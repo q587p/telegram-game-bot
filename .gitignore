@@ -29,3 +29,11 @@ Thumbs.db
 
 # Misc
 *.zip
+
+# Dev helper scripts / one-off patch files
+apply-game-update.mjs
+fix-typecheck.mjs
+normalize-eol.sh
+normalize-eol.cmd
+README-NORMALIZE.md
+README-QUICKSTART-PUBLIC.md
