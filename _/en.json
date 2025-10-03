@@ -1,0 +1,6 @@
+{
+  "start": "👋 Hi, {name}! I’m your game bot. Use /help to see what I can do.",
+  "help": "ℹ️ *Help*\n\nAvailable commands:\n/start — welcome message\n/help — this help\n/lang — change language",
+  "lang.prompt": "🌐 Choose language:",
+  "lang.set": "✅ Language set to English."
+}

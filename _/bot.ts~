@@ -1,0 +1,60 @@
+import "dotenv/config";
+import { Bot, InlineKeyboard } from "grammy";
+import { createI18n } from "./i18n.js";
+
+// ---- Config ----
+const token = process.env.BOT_TOKEN;
+if (!token) {
+  console.error("❌ BOT_TOKEN is missing. Put it into .env");
+  process.exit(1);
+}
+
+const bot = new Bot(token);
+const i18n = createI18n();
+
+// Pick language per-update: try user hint, fallback to uk.
+bot.use(async (ctx, next) => {
+  const hint = ctx.from?.language_code?.toLowerCase() ?? "uk";
+  // Map Telegram language_code to our locales
+  const mapped = hint.startsWith("uk") || hint.startsWith("ru") ? "uk" : "en";
+  // @ts-ignore add locale to ctx for convenience
+  ctx.locale = mapped;
+  await next();
+});
+
+// Helper to t() with ctx.locale
+function t(ctx: any, key: string, params?: Record<string, string>) {
+  return i18n.t(ctx.locale ?? "uk", key, params as any);
+}
+
+// ---- Commands ----
+bot.command("start", async (ctx) => {
+  const name = ctx.from?.first_name ?? "гравцю";
+  await ctx.reply(t(ctx, "start", { name }), { parse_mode: "Markdown" });
+});
+
+bot.command("help", async (ctx) => {
+  await ctx.reply(t(ctx, "help"), { parse_mode: "Markdown" });
+});
+
+// Simple language switcher (inline)
+bot.command("lang", async (ctx) => {
+  const kb = new InlineKeyboard()
+    .text("Українська", "set_lang_uk")
+    .text("English", "set_lang_en");
+  await ctx.reply(t(ctx, "lang.prompt"), { reply_markup: kb });
+});
+
+bot.callbackQuery(["set_lang_uk", "set_lang_en"], async (ctx) => {
+  // @ts-ignore
+  ctx.locale = ctx.match === "set_lang_uk" ? "uk" : "en";
+  await ctx.answerCallbackQuery();
+  const msg = ctx.locale === "uk" ? t(ctx, "lang.set") : "✅ Language set to English.";
+  await ctx.editMessageText(msg);
+});
+
+// ---- Startup ----
+// By default, use long polling for simplicity. You can switch to webhook later.
+bot.start().then(() => {
+  console.log("🚀 Bot is running (long polling)...");
+});

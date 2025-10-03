@@ -1,0 +1,23 @@
+{
+  "name": "telegram-game-bot",
+  "version": "0.0.6",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --loader ts-node/esm src/bot.ts",
+    "dev:watch": "nodemon --exec node --loader ts-node/esm src/bot.ts -e ts,ftl",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/bot.js"
+  },
+  "dependencies": {
+    "grammy": "^1.38.2",
+    "@grammyjs/i18n": "1.1.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3",
+    "nodemon": "^3.1.7"
+  }
+}
