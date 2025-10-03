@@ -37,3 +37,10 @@ normalize-eol.sh
 normalize-eol.cmd
 README-NORMALIZE.md
 README-QUICKSTART-PUBLIC.md
+# One-off helper scripts
+*.mjs
+!vite.config.mjs
+# One-off helper scripts
+apply-game-update.mjs
+fix-typecheck.mjs
+check-i18n-keys.mjs
