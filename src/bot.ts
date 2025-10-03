@@ -13,11 +13,23 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 import setupQuest from "./quest-rework.js";
 
+declare global {
+  // eslint-disable-next-line no-var
+  var mainKb: (ctx: any) => import("grammy").InlineKeyboard;
+  var beginMapQuestFromPortal: (ctx: any) => Promise<void>;
+}
+export { };
 
 // ================== Version ==================
-export const VERSION = "0.0.29";
+export const VERSION = "0.0.30";
 
 console.log(`[BOOT] Launching Telegram bot v${VERSION} …`);
+
+; (globalThis as any).mainKb = (ctx: any) =>
+  new InlineKeyboard()
+    .text((ctx as any).t?.("btn-me") ?? "Me", "show_me")
+    .text((ctx as any).t?.("btn-quest") ?? "Quest", "quest_go");
+
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -30,10 +42,10 @@ type Profile = {
   staminaMax: number;
   lastStaminaTs: number; // ms epoch, for auto-regen
   aether: number;
-  skills: Skills;          movesTotal: number;
+  skills: Skills; movesTotal: number;
   searchRuns: number;
   _runMoves: number; // transient counter per run
-// e.g., { lurking: 0, moving: 0 }
+  // e.g., { lurking: 0, moving: 0 }
   crystalsFound: number; // Chaos shards
   questsStarted: number;
   questsSucceeded: number;
@@ -79,7 +91,7 @@ function defaultProfile(): Profile {
     staminaMax: 5,
     lastStaminaTs: nowMs(),
     aether: 0,
-    skills: { lurking: 0, moving: 0 , move: 0 },
+    skills: { lurking: 0, moving: 0, move: 0 },
     crystalsFound: 0,
     questsStarted: 0,
     questsSucceeded: 0,
@@ -133,7 +145,6 @@ if (!token) {
   process.exit(1);
 }
 const bot = new Bot<MyContext>(token);
-setupQuest(bot);
 
 // Global error handler
 bot.catch((err) => {
@@ -158,10 +169,11 @@ const i18n = new I18n<MyContext>({
 });
 bot.use(i18n);
 
-
-
 // capture chat id for broadcasts
 bot.use(async (ctx, next) => { if (ctx.chat?.id) ctx.session.chatId = ctx.chat.id; await next(); });
+
+setupQuest(bot);
+
 // ================== Utilities =================
 function displayNameFull(ctx: MyContext): string {
   const u = ctx.from;
@@ -200,7 +212,7 @@ function ensureProfileMigrations(p: Profile) {
 
 // Seeded PRNG (mulberry32)
 function mulberry32(a: number) {
-  return function() {
+  return function () {
     let t = a += 0x6D2B79F5;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -260,7 +272,7 @@ bot.use(async (ctx, next) => {
 function mainKb(ctx: MyContext) {
   return new InlineKeyboard()
     .text((ctx as any).t("btn-me"), "show_me")
-    .text((ctx as any).t("btn-quest"), "quest_lurk");
+    .text((ctx as any).t("btn-quest"), "quest_go");
 }
 
 // quest — 3×3
@@ -331,10 +343,10 @@ function startQuest(p: Profile): Quest {
 function renderMap(q: Quest): string {
   function cellChar(x: number, y: number): string {
     const isPlayer = x === q.px && y === q.py;
-    const isShard  = x === q.cx && y === q.cy;
+    const isShard = x === q.cx && y === q.cy;
     if (!q.seen[y][x]) return GRID_FOG;
     if (isPlayer) return GRID_PLAYER;
-    if (isShard)  return GRID_SHARD;
+    if (isShard) return GRID_SHARD;
     return GRID_FLOOR;
   }
 
@@ -450,7 +462,7 @@ async function sendMe(ctx: MyContext) {
   if (skillsUnlocked > 0) {
     lines.push((ctx as any).t("me-line-skills-header", { skills_count: String(skillsUnlocked) }));
     if (Math.floor(lurking) >= 1) lines.push(`• ${(ctx as any).t("skill-name-lurking")}: ${Math.floor(lurking)}`);
-    if (Math.floor(moving) >= 1)  lines.push(`• ${(ctx as any).t("skill-name-moving")}: ${Math.floor(moving)}`);
+    if (Math.floor(moving) >= 1) lines.push(`• ${(ctx as any).t("skill-name-moving")}: ${Math.floor(moving)}`);
   }
 
   const text = lines.join("\n");
@@ -462,12 +474,12 @@ async function sendMe(ctx: MyContext) {
 
 bot.callbackQuery("portal_enter", async (ctx) => {
   const p = ctx.session.profile;
-  if ((p.aether||0) < 13) { await ctx.answerCallbackQuery({ text: ctx.t("quest-portal-insufficient", { aether: String(p.aether||0) }) }); return; }
+  if ((p.aether || 0) < 13) { await ctx.answerCallbackQuery({ text: ctx.t("quest-portal-insufficient", { aether: String(p.aether || 0) }) }); return; }
   p.aether -= 13;
   p._runMoves = 0;
   await ctx.editMessageText(ctx.t("portal-entered"));
   const scs = (globalThis as any).startChaosSearch;
-if (typeof scs === "function") { await scs(ctx as any); } else { await ctx.reply(ctx.t("portal-search-placeholder")); }
+  if (typeof scs === "function") { await scs(ctx as any); } else { await ctx.reply(ctx.t("portal-search-placeholder")); }
 });
 bot.callbackQuery("portal_skip", async (ctx) => {
   await ctx.editMessageText(ctx.t("portal-skipped"));
@@ -480,24 +492,24 @@ bot.command("quest", offerQuest);
 
 
 // ============ Quest rework ============
-async function offerQuest(ctx: any){
+async function offerQuest(ctx: any) {
   const roll = Math.random();
-  if (roll < 0.25){
+  if (roll < 0.25) {
     // a) +1 XP
     ctx.session.profile.xp += 1;
     await ctx.reply(ctx.t("quest-gain-xp"));
-  } else if (roll < 0.5){
+  } else if (roll < 0.5) {
     // b) fun but no xp
     await ctx.reply(ctx.t("quest-fun-no-gain"));
-  } else if (roll < 0.75){
+  } else if (roll < 0.75) {
     // c) find 1..5 Aether
-    const gain = 1 + Math.floor(Math.random()*5);
+    const gain = 1 + Math.floor(Math.random() * 5);
     ctx.session.profile.aether = (ctx.session.profile.aether || 0) + gain;
     await ctx.reply(ctx.t("quest-find-aether", { gained: String(gain), total: String(ctx.session.profile.aether) }));
   } else {
     // d) portal to Chaos
     const a = ctx.session.profile.aether || 0;
-    if (a < 13){
+    if (a < 13) {
       await ctx.reply(ctx.t("quest-portal-insufficient", { aether: String(a) }));
     } else {
       const { InlineKeyboard } = await import("grammy");
@@ -590,7 +602,7 @@ bot.command("start", async (ctx) => {
   }
   await setMyCommands(); // ensure menu on /start
   await sendGreeting(ctx);
-  await ctx.reply(ctx.t("stats-avg-moves", { avg_moves: String((ctx.session.profile.searchRuns ? Math.round((ctx.session.profile.movesTotal / ctx.session.profile.searchRuns) * 10)/10 : 0)) }));
+  await ctx.reply(ctx.t("stats-avg-moves", { avg_moves: String((ctx.session.profile.searchRuns ? Math.round((ctx.session.profile.movesTotal / ctx.session.profile.searchRuns) * 10) / 10 : 0)) }));
 });
 
 // ================== Language callbacks ========
@@ -618,26 +630,19 @@ bot.callbackQuery("show_me", async (ctx) => {
   await sendMe(ctx);
 });
 
-bot.callbackQuery("quest_lurk", async (ctx) => {
-  const p = (ctx as any).session.profile as Profile;
-  await ctx.answerCallbackQuery();
+// Місток для запуску 5×5 квесту з інших модулів (портал у quest-rework.ts)
+; (globalThis as any).beginMapQuestFromPortal = async (ctx: any) => {
+  const s = (ctx.session ??= {});
+  const p = (s.profile as Profile) ?? (s.profile = defaultProfile());
 
-  // already on a quest?
-  if ((ctx as any).session.quest?.active) {
-    await ctx.reply((ctx as any).t("quest-already"), { reply_markup: questKb(ctx) });
-    return;
-  }
+  // 1) Створити новий 5×5 квест існуючою фабрикою
+  const q = startQuest(p);
+  s.quest = q;
 
-  if (p.stamina <= 0) {
-    await ctx.reply((ctx as any).t("no-stamina"), { reply_markup: mainKb(ctx) });
-    return;
-  }
-
-  // start quest
-  (ctx as any).session.quest = startQuest(p);
-  await ctx.reply((ctx as any).t("quest-intro-seed", { seed: String((ctx as any).session.quest.seed) }), { parse_mode: "Markdown" });
-  await ctx.reply(renderMap((ctx as any).session.quest), { reply_markup: questKb(ctx) });
-});
+  // 2) Початкове відкриття і перший екран мапи
+  revealAround(q);
+  await ctx.reply(renderMap(q), { reply_markup: questKb(ctx as any) });
+};
 
 // ================== Quest controls ============
 bot.callbackQuery(
@@ -725,9 +730,9 @@ bot.callbackQuery(
 // ================== Commands menu =============
 async function setMyCommands() {
   // clear & set localized menus
-  await bot.api.deleteMyCommands().catch(()=>{});
-  await bot.api.deleteMyCommands({ language_code: "en" }).catch(()=>{});
-  await bot.api.deleteMyCommands({ language_code: "uk" }).catch(()=>{});
+  await bot.api.deleteMyCommands().catch(() => { });
+  await bot.api.deleteMyCommands({ language_code: "en" }).catch(() => { });
+  await bot.api.deleteMyCommands({ language_code: "uk" }).catch(() => { });
 
   const en = [
     { command: "tutorial", description: "Open tutorial" },
@@ -751,56 +756,53 @@ async function setMyCommands() {
 
 // ================== Start ======================
 bot.start().then(async () => {
-  
+
   console.log(`🚀 Server started — Telegram bot v${VERSION} (long polling)`);
 
-
-// ============ Graceful shutdown broadcast ============
-async function broadcastMaintenance(bot: any){
-  try {
-    const { readdirSync, existsSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const dir = join(process.cwd(), "data", "sessions");
-    if (!existsSync(dir)) return;
-    const files = readdirSync(dir).filter(f => f.endsWith(".json"));
-    const seen = new Set();
-    for (const f of files){
-      try {
-        const s = JSON.parse(await (await import("node:fs/promises")).readFile(join(dir, f), "utf-8"));
-        const chatId = s?.chatId;
-        if (chatId && !seen.has(chatId)){
-          seen.add(chatId);
-          await bot.api.sendMessage(chatId, "⚙️ Бот зупиняється на технічні роботи. Будь ласка, зачекайте на перезапуск.");
-        }
-      } catch {}
-    }
-  } catch (e) { console.error("broadcastMaintenance error:", e); }
-}
-["SIGINT","SIGTERM"].forEach(sig => {
-  try {
-    process.on(sig, async () => {
-      await broadcastMaintenance(bot);
-      process.exit(0);
-    });
-  } catch {}
-});
-
-await setMyCommands();
+  // ============ Graceful shutdown broadcast ============
+  async function broadcastMaintenance(bot: any) {
+    try {
+      const { readdirSync, existsSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const dir = join(process.cwd(), "data", "sessions");
+      if (!existsSync(dir)) return;
+      const files = readdirSync(dir).filter(f => f.endsWith(".json"));
+      const seen = new Set();
+      for (const f of files) {
+        try {
+          const s = JSON.parse(await (await import("node:fs/promises")).readFile(join(dir, f), "utf-8"));
+          const chatId = s?.chatId;
+          if (chatId && !seen.has(chatId)) {
+            seen.add(chatId);
+            await bot.api.sendMessage(chatId, "⚙️ Бот зупиняється на технічні роботи. Будь ласка, зачекайте на перезапуск.");
+          }
+        } catch { }
+      }
+    } catch (e) { console.error("broadcastMaintenance error:", e); }
+  }
+  ["SIGINT", "SIGTERM"].forEach(sig => {
+    try {
+      process.on(sig, async () => {
+        await broadcastMaintenance(bot);
+        process.exit(0);
+      });
+    } catch { }
   });
+
+  await setMyCommands();
+});
 
 
 const SKILL_STEP_BASE = 0.2; // was 0.1
 
-
-
 // ============ Moves & skill helpers ============
-function recordMove(ctx: any){ try { ctx.session.profile._runMoves = (ctx.session.profile._runMoves || 0) + 1; } catch {} }
-function finalizeRunOnShard(ctx: any){ try { const p = ctx.session.profile; p.movesTotal = (p.movesTotal||0) + (p._runMoves||0); p.searchRuns = (p.searchRuns||0) + 1; p._runMoves = 0; } catch {} }
+function recordMove(ctx: any) { try { ctx.session.profile._runMoves = (ctx.session.profile._runMoves || 0) + 1; } catch { } }
+function finalizeRunOnShard(ctx: any) { try { const p = ctx.session.profile; p.movesTotal = (p.movesTotal || 0) + (p._runMoves || 0); p.searchRuns = (p.searchRuns || 0) + 1; p._runMoves = 0; } catch { } }
 
-function maybeAnnounceIntegerSkill(ctx: any, name: "move" | "lurk", value: number){
+function maybeAnnounceIntegerSkill(ctx: any, name: "move" | "lurk", value: number) {
   const intPart = Math.floor(value + 1e-9);
   const isExactInt = Math.abs(value - intPart) < 1e-9;
-  if (isExactInt && intPart >= 1){
+  if (isExactInt && intPart >= 1) {
     const label = name === "move" ? ctx.t("skill-move-level-up", { level: String(intPart) }) : ctx.t("skill-lurk-level-up", { level: String(intPart) });
     ctx.reply(label);
   }

@@ -11,7 +11,7 @@ lang-set-uk = ✅ Language set to Ukrainian.
 greet =
   👁 You open your eyes and see the moving aether.
   Whispers of Eris echo in laughter, shadows of Chaos crawl across your vision.
-  Are you ready to transition from *Lurker* to *Magus*, from observing the dance of the world to *creating the Philosopher's Stone*?
+  Are you ready to transition from *Lurker* to *Magus*, from observing the dance of the world to creating the Philosopher's Stone?
 
   Head out on adventures to gain experience, increase your skill and other rewards.
   You earn 📖 experience *by completing quests*.

@@ -1,0 +1,39 @@
+Що робить скрипт
+
+Перевіряє наявність інструментів (git, npm, за потреби gh).
+
+Переконується, що робоче дерево чисте.
+
+Оновлює main (або іншу базову гілку).
+
+Визначає версію (або бере вашу з -Version).
+
+Створює/перемикається на release/<version>.
+
+(За замовч.) виконує npm ci, npm run typecheck, npm run build (можна пропустити -NoBuild).
+
+Робить npm version <version> -m "chore(release): %s" → коміт + тег v<version>.
+
+Якщо вказано -Push, пушить гілку з тегами.
+
+Якщо вказано -CreatePR, відкриває PR у GitHub.
+
+Якщо вказано -CreateRelease, робить GitHub Release з автонотатками.
+
+Налаштування/параметри
+
+-Bump patch|minor|major — тип підняття версії (якщо не передано -Version).
+
+-Version 0.0.26 — точний номер (має пріоритет над -Bump).
+
+-BaseBranch main — якщо основна гілка називається інакше.
+
+-Push — пуш гілки з тегами.
+
+-CreatePR — створити Pull Request (вимагає gh).
+
+-CreateRelease — створити GitHub Release (вимагає gh, тег має бути запушений).
+
+-NoBuild — пропустити npm ci/typecheck/build.
+
+-DryRun — лише показує кроки, без змін.
