@@ -1,15 +1,13 @@
 {
   "name": "telegram-game-bot",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "npm run build && concurrently -k -n BUILD,RUN -c auto \"tsc -w\" \"nodemon -q --watch dist dist/bot.js\"",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/bot.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepare": "husky",
-    "push:run": "powershell -ExecutionPolicy Bypass -File ./tools/push-and-restart.ps1 -Branch main"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "grammy": "^1.38.2",
@@ -20,7 +18,6 @@
     "@types/node": "^22.0.0",
     "typescript": "^5.6.3",
     "nodemon": "^3.1.7",
-    "concurrently": "^8.2.2",
-    "husky": "^9.1.6"
+    "concurrently": "^8.2.2"
   }
 }

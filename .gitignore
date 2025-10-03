@@ -1,31 +1,13 @@
-# Node
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-pnpm-lock.yaml
-
-# Build
 dist/
-
-# Env
 .env
 .env.*
-
-# App data
 data/sessions/
-
-# Local scratch
 /_/
 **/_/
-
-# OS / Editor
 .DS_Store
 Thumbs.db
 *.swp
 .idea/
 .vscode/
-
-# Misc
 *.zip
