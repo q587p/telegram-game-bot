@@ -52,3 +52,7 @@
 - Fix TypeScript syntax issues: remove stray first-line char and replace Python-style `r"..."` in `escapeMarkdown` with proper TS string.
 - Add `/_/` and `**/_/` to `.gitignore` to ignore local `_` folders.
 - Dev flow remains compile-then-run (tsc→nodemon).
+
+## 0.0.11
+- Hardcoded fix for `escapeMarkdown` (now pure TypeScript: `return text.replace(/([\*_`\[\]\\])/g, '\\$1');`).
+- Keeps compile-then-run dev flow (tsc→nodemon). If you still see errors, ensure files were fully replaced.

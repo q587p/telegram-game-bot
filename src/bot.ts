@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.10";
+export const VERSION = "0.0.11";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -148,8 +148,8 @@ function displayNameFull(ctx: MyContext): string {
   return name;
 }
 function escapeMarkdown(text: string): string {
-  // Telegram "Markdown" escaping for *, _, `, [, ]
-  return text.replace(/([\\*\\_\\`\\[\\]])/g, r"\\\\$1");
+  // Escape Telegram Markdown special chars: *, _, `, [, ], and backslash
+  return text.replace(/([\*_`\[\]\])/g, '\$1');
 }
 function percent(passed: number, total: number): string {
   if (total <= 0) return "0.00%";
