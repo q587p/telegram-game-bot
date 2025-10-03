@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.11";
+export const VERSION = "0.0.12";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -359,6 +359,7 @@ async function sendGreeting(ctx: MyContext) {
   }
 }
 
+
 async function sendMe(ctx: MyContext) {
   const p = ctx.session.profile;
   const name = escapeMarkdown(displayNameFull(ctx));
@@ -366,6 +367,31 @@ async function sendMe(ctx: MyContext) {
   if (p.questsSucceeded === 0) {
     await ctx.reply(ctx.t("me-notice"));
   }
+  const skillsCount = Object.values(p.skills).filter(v => v >= 1).length;
+  const lurkLevel = (p.skills.lurk ?? 0).toFixed(2);
+
+  let lines: string[] = [];
+  lines.push(ctx.t("me-base", {
+    name,
+    level: String(p.level),
+    percent: pct,
+    xp: String(p.xp),
+    xp_target: String(p.xpTarget),
+    stamina: String(p.stamina),
+    stamina_max: String(p.staminaMax),
+  }));
+
+  if (p.crystalsFound > 0) {
+    lines.push(ctx.t("me-line-shards", { shards_found: String(p.crystalsFound) }));
+  }
+  if (skillsCount > 0) {
+    lines.push(ctx.t("me-line-skills", { skills_count: String(skillsCount), lurk_level: String(lurkLevel) }));
+  }
+
+  const text = lines.join("
+");
+  await ctx.reply(text, { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
+}
   const skillsCount = Object.values(p.skills).filter(v => v >= 1).length;
   const lurkLevel = (p.skills.lurk ?? 0).toFixed(2);
   await ctx.reply(
@@ -413,6 +439,14 @@ bot.command("restore", async (ctx) => {
   });
 });
 
+
+// hidden restart command — resets character and tutorial progress
+bot.command("restart", async (ctx) => {
+  ctx.session = defaultSession();
+  await ctx.reply(ctx.t("restart-done"));
+  await sendGreeting(ctx);
+});
+
 // hidden changelog command — NOT in setMyCommands
 bot.command("changelog", async (ctx) => {
   try {
@@ -433,7 +467,7 @@ bot.command("changelog", async (ctx) => {
 bot.command("tutorial", async (ctx) => {
   const p = ctx.session.profile;
   if (p.questsSucceeded === 0) {
-    await ctx.reply(ctx.t("tutorial-intro-pre"));
+    await ctx.reply(ctx.t("tutorial-intro-pre", { level: String(p.level), xp_target: String(p.xpTarget), stamina: String(p.stamina) }));
   } else if (p.level < 1) {
     await ctx.reply(ctx.t("tutorial-step-reach-l1", { xp: String(p.xp), xp_target: String(p.xpTarget) }));
   } else {

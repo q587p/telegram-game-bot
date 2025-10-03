@@ -54,28 +54,27 @@ help =
 
 # Me card
 me-notice = ❗️You have unfinished business, check the /tutorial command.
-me-card =
+me-base =
   { $name }
   Magus of 👀 Lurkers
   🏅Level: { $level } { $percent }
   📖Exp: { $xp }/{ $xp_target }
   ⚡️Energy: { $stamina }/{ $stamina_max } ⏰
-  💎Crystals found: { $crystals_found }
   📜Quests: { $quests_started } total ({ $quests_succeeded } ✓ / { $quests_failed } ✗)
-  🧠Skills unlocked: { $skills_count } (Lurk: { $lurk_level })
 
 tutorial-intro-pre =
   🎉 You join the brave magi of 👀 Lurkers.
 
   Head out on adventures to gain experience, increase your skill and other rewards.
+  You earn 📖 experience *by completing quests*.
 
   🏅 Level:
-    • You are currently at level 0.
+    • You are currently at level { $level }.
     • Earn 📖 experience to level up.
-    • When your experience reaches 13, your level will increase.
+    • When your experience reaches { $xp_target }, your level will increase.
 
   ⚡️ Energy:
-    • Current energy: 0.
+    • Current energy: { $stamina }.
 
   ❗️ Current task:
     • Start a quest
@@ -112,3 +111,7 @@ changelog-empty = (no changelog found)
 
 # Debug
 restored = ⚡️ Energy restored to { $stamina }.
+
+me-line-shards =   🔮Chaos shards found: { $shards_found }
+me-line-skills =   🧠Skills unlocked: { $skills_count } (Lurk: { $lurk_level })
+restart-done = 🔁 Character reset. Tutorial restarted; your progress is now fresh.
