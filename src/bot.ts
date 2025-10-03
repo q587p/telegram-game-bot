@@ -396,7 +396,7 @@ async function sendMe(ctx: MyContext) {
   }
   const lurking = p.skills.lurking ?? 0;
   const moving = p.skills.moving ?? 0;
-  const skillsUnlocked = (Math.floor(lurking) >= 1) + (Math.floor(moving) >= 1);
+  const skillsUnlocked = Number(Math.floor(lurking) >= 1) + Number(Math.floor(moving) >= 1);
 
   const lines: string[] = [];
   lines.push(ctx.t("me-base", {
