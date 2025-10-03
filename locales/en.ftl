@@ -59,7 +59,7 @@ me-base =
   📖Exp: { $xp }/{ $xp_target }
   ⚡️Energy: { $stamina }/{ $stamina_max } ⏰
 me-line-shards =   🔮Chaos shards found: { $shards_found }
-me-line-skills =   🧠Skills unlocked: { $skills_count } (Lurk: { $lurk_level })
+me-line-skills-header =   🧠Skills unlocked: { $skills_count }
 
 tutorial-intro-pre =
   🎉 You join the brave magi of 👀 Lurkers.

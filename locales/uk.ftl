@@ -55,7 +55,7 @@ me-base =
   📖Досвід: { $xp }/{ $xp_target }
   ⚡️Енерґія: { $stamina }/{ $stamina_max } ⏰
 me-line-shards =   🔮Знайдено осколків Хаосу: { $shards_found }
-me-line-skills =   🧠Навички відкрито: { $skills_count } (Lurk: { $lurk_level })
+me-line-skills-header =   🧠Навички відкрито: { $skills_count }
 
 tutorial-intro-pre =
   🎉 Ти приєднався до хоробрих маґів 👀 Lurkers.

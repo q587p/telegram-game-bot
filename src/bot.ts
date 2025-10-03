@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.15";
+export const VERSION = "0.0.16";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -26,11 +26,11 @@ type Profile = {
   staminaMax: number;
   lastStaminaTs: number; // ms epoch, for auto-regen
   skills: Skills;        // e.g., { lurk: 0.3 }
-  crystalsFound: number;
+  crystalsFound: number; // Chaos shards
   questsStarted: number;
   questsSucceeded: number;
   questsFailed: number;
-  seenStart: boolean;        // whether greeted once
+  seenStart: boolean;    // whether greeted once
 };
 
 type Quest = {
@@ -42,7 +42,7 @@ type Quest = {
   cy: number;
   seed: number;
   seen: boolean[][]; // fog of war (true = revealed)
-  walls: boolean[][]; // drawn walls (edges hit)
+  walls: boolean[][]; // simple wall marks on border bumps
 };
 
 type SessionData = {
@@ -55,11 +55,9 @@ type MyContext = Context & SessionFlavor<SessionData> & I18nFlavor;
 
 // ================== Defaults =================
 const GRID_SIZE = 5;
-const XP_ON_CRYSTAL = 1;
+const XP_ON_SHARD = 1;
 
-function nowMs() {
-  return Date.now();
-}
+function nowMs() { return Date.now(); }
 function defaultProfile(): Profile {
   return {
     level: 0,
@@ -107,11 +105,7 @@ class FileStorage<T> implements StorageAdapter<T> {
   }
   async delete(key: string): Promise<void> {
     const p = this.pathFor(key);
-    try {
-      await fsp.unlink(p);
-    } catch (e: any) {
-      if (e.code !== "ENOENT") throw e;
-    }
+    try { await fsp.unlink(p); } catch (e: any) { if (e.code !== "ENOENT") throw e; }
   }
 }
 
@@ -185,10 +179,9 @@ function nextXpTargetFor(level: number): number {
   return 13 * (level + 1);
 }
 
-// auto-regen (Energy): +1/min until max; notify user
-function now() { return Date.now(); }
+// auto-regen (Energy): +1/min until max; notify user (only outside quests)
 function regenAmount(p: Profile): number {
-  const n = now();
+  const n = Date.now();
   const diffMin = Math.floor((n - p.lastStaminaTs) / 60000);
   if (diffMin <= 0) return 0;
   const canGain = Math.max(0, p.staminaMax - p.stamina);
@@ -202,8 +195,7 @@ function regenAmount(p: Profile): number {
   return gain;
 }
 
-// Notify regen before each update + migrate old sessions
-// Notify regen before each update + migrate old sessions
+// Notify regen + migrate
 bot.use(async (ctx, next) => {
   const p = ctx.session?.profile;
   if (p) {
@@ -285,7 +277,7 @@ function startQuest(p: Profile): Quest {
     cx = (cx + 1) % GRID_SIZE;
   }
   const q: Quest = { active: true, gridSize: GRID_SIZE, px, py, cx, cy, seed, seen: createSeen(), walls: createWalls() };
-  // reveal starting tile
+  // reveal starting tile only
   q.seen[py][px] = true;
   return q;
 }
@@ -296,15 +288,17 @@ function renderFullMap(q: Quest): string {
     let line = "";
     for (let x = 0; x < q.gridSize; x++) {
       const isPlayer = x === q.px && y === q.py;
-      const isCrystal = x === q.cx && y === q.cy;
-      if (!q.seen[y][x]) {
-        line += "◻️"; // fog
+      const isShard = x === q.cx && y === q.cy;
+      if (q.walls[y][x]) {
+        line += "🧱";
+      } else if (!q.seen[y][x]) {
+        line += "⬛";
       } else if (isPlayer) {
         line += "📍";
-      } else if (isCrystal) {
-        line += "💎";
+      } else if (isShard) {
+        line += "🔮";
       } else {
-        line += "▫️"; // empty revealed
+        line += "🟫";
       }
     }
     out += line + "\n";
@@ -313,7 +307,6 @@ function renderFullMap(q: Quest): string {
 }
 
 function move(q: Quest, dir: "up" | "down" | "left" | "right"): boolean {
-  const before = { x: q.px, y: q.py };
   let moved = false;
   if (dir === "up") {
     if (q.py > 0) { q.py -= 1; moved = true; } else { q.walls[0][q.px] = true; q.seen[0][q.px] = true; }
@@ -325,19 +318,7 @@ function move(q: Quest, dir: "up" | "down" | "left" | "right"): boolean {
     if (q.px < q.gridSize - 1) { q.px += 1; moved = true; } else { q.walls[q.py][q.gridSize - 1] = true; q.seen[q.py][q.gridSize - 1] = true; }
   }
   if (moved) {
-    q.seen[q.py][q.px] = true;
-  }
-  return moved;
-};
-  if (dir === "up" && q.py > 0) q.py -= 1;
-  else if (dir === "down" && q.py < q.gridSize - 1) q.py += 1;
-  else if (dir === "left" && q.px > 0) q.px -= 1;
-  else if (dir === "right" && q.px < q.gridSize - 1) q.px += 1;
-  const moved = (before.x !== q.px) || (before.y !== q.py);
-  // reveal around on any attempt (even bumping border)
-  revealAround(q);
-  if (moved) {
-    q.seen[q.py][q.px] = true;
+    q.seen[q.py][q.px] = true; // only reveal current tile
   }
   return moved;
 }
@@ -363,7 +344,10 @@ function lurkIncrement(current: number): number {
 async function sendGreeting(ctx: MyContext) {
   const p = ctx.session.profile;
   if (p.seenStart) {
-    await ctx.reply(ctx.t("welcome-back", { name: escapeMarkdown(displayNameFull(ctx)) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
+    await ctx.reply(ctx.t("welcome-back", { name: escapeMarkdown(displayNameFull(ctx)) }), {
+      parse_mode: "Markdown",
+      reply_markup: mainKb(ctx),
+    });
   } else {
     await ctx.reply(
       ctx.t("greet", {
@@ -384,8 +368,9 @@ async function sendMe(ctx: MyContext) {
   if (p.questsSucceeded === 0) {
     await ctx.reply(ctx.t("me-notice"));
   }
-  const skillsCount = Object.values(p.skills).filter(v => v >= 1).length;
-  const lurkLevel = (p.skills.lurk ?? 0).toFixed(2);
+  const lurk = p.skills.lurk ?? 0;
+  const lurkInt = Math.floor(lurk);
+  const skillsUnlocked = (lurkInt >= 1) ? 1 : 0; // for now only Lurk
 
   const lines: string[] = [];
   lines.push(ctx.t("me-base", {
@@ -401,8 +386,10 @@ async function sendMe(ctx: MyContext) {
   if (p.crystalsFound > 0) {
     lines.push(ctx.t("me-line-shards", { shards_found: String(p.crystalsFound) }));
   }
-  if (skillsCount > 0) {
-    lines.push(ctx.t("me-line-skills", { skills_count: String(skillsCount), lurk_level: String(lurkLevel) }));
+  if (skillsUnlocked > 0) {
+    lines.push(ctx.t("me-line-skills-header", { skills_count: String(skillsUnlocked) }));
+    // bullet list
+    lines.push(`* Lurk: ${lurkInt}`);
   }
 
   const text = lines.join("\n");
@@ -446,14 +433,11 @@ bot.command("changelog", async (ctx) => {
   try {
     const path = join(process.cwd(), "CHANGELOG.md");
     const content = await fsp.readFile(path, "utf8");
-
-    // Extract the latest "## ..." section (up to the next "## " or end)
     const m = content.match(/## [^\n]+\n(?:.*?\n)*?(?=^## |\Z)/ms);
     const latest = m ? m[0].trim() : "";
-
     const text = latest ? latest : ctx.t("changelog-empty");
     await ctx.reply(`${ctx.t("changelog-title")}\n\n${text}`, { parse_mode: "Markdown" });
-  } catch (e) {
+  } catch {
     await ctx.reply(ctx.t("changelog-empty"));
   }
 });
@@ -518,7 +502,7 @@ bot.callbackQuery("quest_lurk", async (ctx) => {
 
   // start quest
   ctx.session.quest = startQuest(p);
-  await ctx.reply(ctx.t("quest-intro-seed", { seed: String(ctx.session.quest.seed) }));
+  await ctx.reply(ctx.t("quest-intro-seed", { seed: String(ctx.session.quest.seed) }), { parse_mode: "Markdown" });
   await ctx.reply(renderFullMap(ctx.session.quest), { reply_markup: questKb(ctx) });
 });
 
@@ -548,12 +532,12 @@ bot.callbackQuery(
       const before = p.skills.lurk ?? 0;
       const inc = lurkIncrement(before);
       const after = Math.round((before + inc) * 1000) / 1000; // 3 decimals
-      const unlockedBefore = Object.values(p.skills).filter(v => v >= 1).length;
+      const unlockedBefore = Math.floor(before) >= 1 ? 1 : 0;
       p.skills.lurk = after;
 
       await ctx.reply(renderFullMap(q), { reply_markup: questKb(ctx as MyContext) });
 
-      if (before < 1 && after >= 1 && unlockedBefore === 0) {
+      if (Math.floor(before) < 1 && Math.floor(after) >= 1 && unlockedBefore === 0) {
         await ctx.reply(ctx.t("skill-unlocked-first", { skill: "Lurk" }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as MyContext) });
       }
       return;
@@ -567,7 +551,7 @@ bot.callbackQuery(
     // success?
     if (q.px === q.cx && q.py === q.cy) {
       const p = ctx.session.profile;
-      p.xp += XP_ON_CRYSTAL;
+      p.xp += XP_ON_SHARD;
       p.crystalsFound += 1;
       p.questsSucceeded += 1;
 
@@ -577,12 +561,12 @@ bot.callbackQuery(
 
       await ctx.reply(
         ctx.t("quest-complete", {
-          xp_gain: String(XP_ON_CRYSTAL),
+          xp_gain: String(XP_ON_SHARD),
           xp: String(p.xp),
           xp_target: String(p.xpTarget),
           stamina: String(p.stamina),
         }),
-        { reply_markup: mainKb(ctx as MyContext) }
+        { reply_markup: mainKb(ctx as MyContext), parse_mode: "Markdown" }
       );
       if (leveled) {
         await ctx.reply(ctx.t("leveled-up", { level: String(p.level) }), { reply_markup: mainKb(ctx as MyContext) });
@@ -610,10 +594,16 @@ async function setMyCommands() {
     { command: "lang", description: "Змінити мову" },
   ];
 
+  // Default (all users, any language)
   await bot.api.setMyCommands(en);
+
+  // Language-specific
   await bot.api.setMyCommands(en, { language_code: "en" });
   await bot.api.setMyCommands(uk, { language_code: "uk" });
+
+  // Private chats scope
   await bot.api.setMyCommands(en, { scope: { type: "all_private_chats" } });
+  await bot.api.setMyCommands(uk, { scope: { type: "all_private_chats" }, language_code: "uk" });
 }
 
 // ================== Start ======================
