@@ -1,4 +1,4 @@
-# Telegram Game Bot (0.0.14)
+# Telegram Game Bot (0.0.15)
 
 Stable dev on Windows: **compile → run** (no experimental loaders).
 - `npm run dev` — first build, then `tsc -w` + `nodemon`

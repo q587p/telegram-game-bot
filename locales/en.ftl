@@ -24,7 +24,7 @@ greet =
 
   ❗️ Current task:
     • Start a quest
-welcome-back = 👋 Welcome back.
+welcome-back = 👋 *Ave*, { $name } — welcome back to the arcane adventures!
 
 # Buttons (main)
 btn-quest = 🗺 Quest
@@ -84,11 +84,11 @@ tutorial-step-reach-l1 =
 tutorial-dev = 🧪 Further steps are in development. Stay tuned!
 
 # Quest texts
-quest-intro-seed = ✨ Generating an ether field 5×5. Seed: `{ $seed }`. Find the crystal within it.
+quest-intro-seed = ✨ Generating an ether field 5×5. Seed: `{ $seed }`. Find the *Chaos shard* within it.
 quest-already = 🧭 You are already on a quest. Use the buttons below.
 quest-not-active = ℹ️ No active quest. Tap 🗺 Quest to start.
 quest-complete =
-  🎉 You found the crystal! 💎
+  🎉 You found the *Chaos shard*! 🔮
   +{ $xp_gain } XP
   ⚡️ Energy: { $stamina }
   🏅 XP: { $xp } / { $xp_target }

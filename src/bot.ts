@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.14";
+export const VERSION = "0.0.15";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -42,6 +42,7 @@ type Quest = {
   cy: number;
   seed: number;
   seen: boolean[][]; // fog of war (true = revealed)
+  walls: boolean[][]; // drawn walls (edges hit)
 };
 
 type SessionData = {
@@ -202,16 +203,20 @@ function regenAmount(p: Profile): number {
 }
 
 // Notify regen before each update + migrate old sessions
+// Notify regen before each update + migrate old sessions
 bot.use(async (ctx, next) => {
   const p = ctx.session?.profile;
   if (p) {
     ensureProfileMigrations(p);
-    const gained = regenAmount(p);
-    if (gained > 0) {
-      if (p.stamina >= p.staminaMax) {
-        await ctx.reply(ctx.t("stamina-full")); // text says Energy
-      } else {
-        await ctx.reply(ctx.t("stamina-tick", { amt: String(gained), stamina: String(p.stamina) }));
+    const hasActiveQuest = !!ctx.session?.quest?.active;
+    if (!hasActiveQuest) {
+      const gained = regenAmount(p);
+      if (gained > 0) {
+        if (p.stamina >= p.staminaMax) {
+          await ctx.reply(ctx.t("stamina-full"));
+        } else {
+          await ctx.reply(ctx.t("stamina-tick", { amt: String(gained), stamina: String(p.stamina) }));
+        }
       }
     }
   }
@@ -250,6 +255,9 @@ const langKb = new InlineKeyboard()
 function createSeen(): boolean[][] {
   return Array.from({ length: GRID_SIZE }, () => Array.from({ length: GRID_SIZE }, () => false));
 }
+function createWalls(): boolean[][] {
+  return Array.from({ length: GRID_SIZE }, () => Array.from({ length: GRID_SIZE }, () => false));
+}
 function revealAround(q: Quest) {
   for (let yy = q.py - 1; yy <= q.py + 1; yy++) {
     for (let xx = q.px - 1; xx <= q.px + 1; xx++) {
@@ -276,7 +284,7 @@ function startQuest(p: Profile): Quest {
   if (cx === px && cy === py) {
     cx = (cx + 1) % GRID_SIZE;
   }
-  const q: Quest = { active: true, gridSize: GRID_SIZE, px, py, cx, cy, seed, seen: createSeen() };
+  const q: Quest = { active: true, gridSize: GRID_SIZE, px, py, cx, cy, seed, seen: createSeen(), walls: createWalls() };
   // reveal starting tile
   q.seen[py][px] = true;
   return q;
@@ -306,6 +314,21 @@ function renderFullMap(q: Quest): string {
 
 function move(q: Quest, dir: "up" | "down" | "left" | "right"): boolean {
   const before = { x: q.px, y: q.py };
+  let moved = false;
+  if (dir === "up") {
+    if (q.py > 0) { q.py -= 1; moved = true; } else { q.walls[0][q.px] = true; q.seen[0][q.px] = true; }
+  } else if (dir === "down") {
+    if (q.py < q.gridSize - 1) { q.py += 1; moved = true; } else { q.walls[q.gridSize - 1][q.px] = true; q.seen[q.gridSize - 1][q.px] = true; }
+  } else if (dir === "left") {
+    if (q.px > 0) { q.px -= 1; moved = true; } else { q.walls[q.py][0] = true; q.seen[q.py][0] = true; }
+  } else if (dir === "right") {
+    if (q.px < q.gridSize - 1) { q.px += 1; moved = true; } else { q.walls[q.py][q.gridSize - 1] = true; q.seen[q.py][q.gridSize - 1] = true; }
+  }
+  if (moved) {
+    q.seen[q.py][q.px] = true;
+  }
+  return moved;
+};
   if (dir === "up" && q.py > 0) q.py -= 1;
   else if (dir === "down" && q.py < q.gridSize - 1) q.py += 1;
   else if (dir === "left" && q.px > 0) q.px -= 1;
@@ -340,7 +363,7 @@ function lurkIncrement(current: number): number {
 async function sendGreeting(ctx: MyContext) {
   const p = ctx.session.profile;
   if (p.seenStart) {
-    await ctx.reply(ctx.t("welcome-back"), { reply_markup: mainKb(ctx) });
+    await ctx.reply(ctx.t("welcome-back", { name: escapeMarkdown(displayNameFull(ctx)) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   } else {
     await ctx.reply(
       ctx.t("greet", {
@@ -438,11 +461,11 @@ bot.command("changelog", async (ctx) => {
 bot.command("tutorial", async (ctx) => {
   const p = ctx.session.profile;
   if (p.questsSucceeded === 0) {
-    await ctx.reply(ctx.t("tutorial-intro-pre", { level: String(p.level), xp_target: String(p.xpTarget), stamina: String(p.stamina) }));
+    await ctx.reply(ctx.t("tutorial-intro-pre", { level: String(p.level), xp_target: String(p.xpTarget), stamina: String(p.stamina) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   } else if (p.level < 1) {
-    await ctx.reply(ctx.t("tutorial-step-reach-l1", { xp: String(p.xp), xp_target: String(p.xpTarget) }));
+    await ctx.reply(ctx.t("tutorial-step-reach-l1", { xp: String(p.xp), xp_target: String(p.xpTarget) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   } else {
-    await ctx.reply(ctx.t("tutorial-dev"));
+    await ctx.reply(ctx.t("tutorial-dev"), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   }
 });
 
@@ -531,7 +554,7 @@ bot.callbackQuery(
       await ctx.reply(renderFullMap(q), { reply_markup: questKb(ctx as MyContext) });
 
       if (before < 1 && after >= 1 && unlockedBefore === 0) {
-        await ctx.reply(ctx.t("skill-unlocked-first", { skill: "Lurk" }));
+        await ctx.reply(ctx.t("skill-unlocked-first", { skill: "Lurk" }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as MyContext) });
       }
       return;
     }
