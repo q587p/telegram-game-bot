@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.16";
+export const VERSION = "0.0.17";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -25,12 +25,13 @@ type Profile = {
   stamina: number;       // displayed as Energy
   staminaMax: number;
   lastStaminaTs: number; // ms epoch, for auto-regen
-  skills: Skills;        // e.g., { lurk: 0.3 }
+  skills: Skills;        // e.g., { lurking: 0, moving: 0 }
   crystalsFound: number; // Chaos shards
   questsStarted: number;
   questsSucceeded: number;
   questsFailed: number;
   seenStart: boolean;    // whether greeted once
+  lastSeenVersion?: string;
 };
 
 type Quest = {
@@ -66,12 +67,13 @@ function defaultProfile(): Profile {
     stamina: 5,
     staminaMax: 5,
     lastStaminaTs: nowMs(),
-    skills: { lurk: 0 },
+    skills: { lurking: 0, moving: 0 },
     crystalsFound: 0,
     questsStarted: 0,
     questsSucceeded: 0,
     questsFailed: 0,
     seenStart: false,
+    lastSeenVersion: undefined,
   };
 }
 function defaultSession(): SessionData {
@@ -117,6 +119,11 @@ if (!token) {
 }
 const bot = new Bot<MyContext>(token);
 
+// Global error handler
+bot.catch((err) => {
+  console.error("BotError", err);
+});
+
 // Sessions: persisted under data/sessions/
 const storage = new FileStorage<SessionData>(join(process.cwd(), "data", "sessions"));
 bot.use(session<SessionData, MyContext>({ initial: () => defaultSession(), storage }));
@@ -161,7 +168,14 @@ function ensureProfileMigrations(p: Profile) {
   if ((p as any).seenStart == null) (p as any).seenStart = false;
   if (p.xpTarget == null || p.xpTarget < 13) p.xpTarget = 13;
   if (!p.skills) p.skills = {};
-  if (p.skills.lurk == null) p.skills.lurk = 0;
+  // rename legacy key "lurk"→"lurking"
+  const anySkills: any = p.skills;
+  if (anySkills.lurk != null && anySkills.lurking == null) {
+    anySkills.lurking = anySkills.lurk;
+    delete anySkills.lurk;
+  }
+  if (anySkills.lurking == null) anySkills.lurking = 0;
+  if (anySkills.moving == null) anySkills.moving = 0;
 }
 
 // Seeded PRNG (mulberry32)
@@ -195,11 +209,17 @@ function regenAmount(p: Profile): number {
   return gain;
 }
 
-// Notify regen + migrate
+// Version notifier + regen + migrations
 bot.use(async (ctx, next) => {
   const p = ctx.session?.profile;
   if (p) {
     ensureProfileMigrations(p);
+    // version notice
+    if (p.lastSeenVersion !== VERSION) {
+      const name = escapeMarkdown(displayNameFull(ctx));
+      await ctx.reply(ctx.t("version-notice", { version: VERSION, name }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as MyContext) });
+      p.lastSeenVersion = VERSION;
+    }
     const hasActiveQuest = !!ctx.session?.quest?.active;
     if (!hasActiveQuest) {
       const gained = regenAmount(p);
@@ -244,6 +264,12 @@ const langKb = new InlineKeyboard()
   .text("English", "set_lang_en");
 
 // ================== Quest helpers =============
+const GRID_FOG = "⬛";
+const GRID_FLOOR = "🟫";
+const GRID_WALL = "🧱";
+const GRID_PLAYER = "📍";
+const GRID_SHARD = "🔮";
+
 function createSeen(): boolean[][] {
   return Array.from({ length: GRID_SIZE }, () => Array.from({ length: GRID_SIZE }, () => false));
 }
@@ -264,7 +290,7 @@ function startQuest(p: Profile): Quest {
   p.stamina = Math.max(0, p.stamina - 1);
   p.questsStarted += 1;
 
-  // derive a 32-bit seed (combine time and a small random)
+  // derive a 32-bit seed
   const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
   const rng = mulberry32(seed);
 
@@ -290,15 +316,15 @@ function renderFullMap(q: Quest): string {
       const isPlayer = x === q.px && y === q.py;
       const isShard = x === q.cx && y === q.cy;
       if (q.walls[y][x]) {
-        line += "🧱";
+        line += GRID_WALL;
       } else if (!q.seen[y][x]) {
-        line += "⬛";
+        line += GRID_FOG;
       } else if (isPlayer) {
-        line += "📍";
+        line += GRID_PLAYER;
       } else if (isShard) {
-        line += "🔮";
+        line += GRID_SHARD;
       } else {
-        line += "🟫";
+        line += GRID_FLOOR;
       }
     }
     out += line + "\n";
@@ -323,7 +349,7 @@ function move(q: Quest, dir: "up" | "down" | "left" | "right"): boolean {
   return moved;
 }
 
-// ================== Level / XP utils ==========
+// ================== Level / XP / Skills utils ==========
 function tryLevelUp(p: Profile): boolean {
   let leveled = false;
   while (p.xp >= p.xpTarget) {
@@ -334,7 +360,7 @@ function tryLevelUp(p: Profile): boolean {
   }
   return leveled;
 }
-function lurkIncrement(current: number): number {
+function skillIncrement(current: number): number {
   const tier = Math.floor(current / 13); // every 13 halves the gain
   const inc = 0.1 * Math.pow(0.5, tier);
   return inc;
@@ -368,9 +394,9 @@ async function sendMe(ctx: MyContext) {
   if (p.questsSucceeded === 0) {
     await ctx.reply(ctx.t("me-notice"));
   }
-  const lurk = p.skills.lurk ?? 0;
-  const lurkInt = Math.floor(lurk);
-  const skillsUnlocked = (lurkInt >= 1) ? 1 : 0; // for now only Lurk
+  const lurking = p.skills.lurking ?? 0;
+  const moving = p.skills.moving ?? 0;
+  const skillsUnlocked = (Math.floor(lurking) >= 1) + (Math.floor(moving) >= 1);
 
   const lines: string[] = [];
   lines.push(ctx.t("me-base", {
@@ -388,12 +414,13 @@ async function sendMe(ctx: MyContext) {
   }
   if (skillsUnlocked > 0) {
     lines.push(ctx.t("me-line-skills-header", { skills_count: String(skillsUnlocked) }));
-    // bullet list
-    lines.push(`* Lurk: ${lurkInt}`);
+    if (Math.floor(lurking) >= 1) lines.push(`• ${ctx.t("skill-name-lurking")}: ${Math.floor(lurking)}`);
+    if (Math.floor(moving) >= 1)  lines.push(`• ${ctx.t("skill-name-moving")}: ${Math.floor(moving)}`);
   }
 
   const text = lines.join("\n");
-  await ctx.reply(text, { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
+  const kb = ctx.session.quest?.active ? questKb(ctx) : mainKb(ctx);
+  await ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
 }
 
 // ================== Commands ==================
@@ -444,13 +471,22 @@ bot.command("changelog", async (ctx) => {
 
 bot.command("tutorial", async (ctx) => {
   const p = ctx.session.profile;
-  if (p.questsSucceeded === 0) {
+  const questActive = !!ctx.session.quest?.active;
+  if (!p.questsSucceeded && !questActive) {
     await ctx.reply(ctx.t("tutorial-intro-pre", { level: String(p.level), xp_target: String(p.xpTarget), stamina: String(p.stamina) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
+  } else if (questActive) {
+    await ctx.reply(ctx.t("tutorial-task-complete-quest"), { parse_mode: "Markdown", reply_markup: questKb(ctx) });
   } else if (p.level < 1) {
     await ctx.reply(ctx.t("tutorial-step-reach-l1", { xp: String(p.xp), xp_target: String(p.xpTarget) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   } else {
     await ctx.reply(ctx.t("tutorial-dev"), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   }
+});
+
+// hidden: re-apply commands
+bot.command("fixmenu", async (ctx) => {
+  await setMyCommands();
+  await ctx.reply("✅ Commands menu refreshed.");
 });
 
 bot.command("start", async (ctx) => {
@@ -459,6 +495,7 @@ bot.command("start", async (ctx) => {
     await ctx.reply(ctx.t("choose-language"), { reply_markup: langKb });
     return;
   }
+  await setMyCommands(); // ensure menu on /start
   await sendGreeting(ctx);
 });
 
@@ -468,6 +505,7 @@ bot.callbackQuery("set_lang_uk", async (ctx) => {
   await ctx.i18n.renegotiateLocale();
   await ctx.answerCallbackQuery();
   await ctx.editMessageText(ctx.t("lang-set-uk"));
+  await setMyCommands();
   await sendGreeting(ctx);
 });
 
@@ -476,6 +514,7 @@ bot.callbackQuery("set_lang_en", async (ctx) => {
   await ctx.i18n.renegotiateLocale();
   await ctx.answerCallbackQuery();
   await ctx.editMessageText(ctx.t("lang-set-en"));
+  await setMyCommands();
   await sendGreeting(ctx);
 });
 
@@ -529,24 +568,33 @@ bot.callbackQuery(
     if (ctx.match === "q_look") {
       revealAround(q);
       const p = ctx.session.profile;
-      const before = p.skills.lurk ?? 0;
-      const inc = lurkIncrement(before);
-      const after = Math.round((before + inc) * 1000) / 1000; // 3 decimals
+      const before = p.skills.lurking ?? 0;
+      const inc = skillIncrement(before);
+      const after = Math.round((before + inc) * 1000) / 1000;
       const unlockedBefore = Math.floor(before) >= 1 ? 1 : 0;
-      p.skills.lurk = after;
+      p.skills.lurking = after;
 
       await ctx.reply(renderFullMap(q), { reply_markup: questKb(ctx as MyContext) });
 
       if (Math.floor(before) < 1 && Math.floor(after) >= 1 && unlockedBefore === 0) {
-        await ctx.reply(ctx.t("skill-unlocked-first", { skill: "Lurk" }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as MyContext) });
+        await ctx.reply(ctx.t("skill-unlocked-first", { skill: ctx.t("skill-name-lurking") }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as MyContext) });
       }
       return;
     }
 
-    if (ctx.match === "q_up") move(q, "up");
-    else if (ctx.match === "q_down") move(q, "down");
-    else if (ctx.match === "q_left") move(q, "left");
-    else if (ctx.match === "q_right") move(q, "right");
+    let moved = false;
+    if (ctx.match === "q_up") moved = move(q, "up");
+    else if (ctx.match === "q_down") moved = move(q, "down");
+    else if (ctx.match === "q_left") moved = move(q, "left");
+    else if (ctx.match === "q_right") moved = move(q, "right");
+
+    if (moved) {
+      // moving skill gains
+      const p = ctx.session.profile;
+      const b = p.skills.moving ?? 0;
+      const inc = skillIncrement(b);
+      p.skills.moving = Math.round((b + inc) * 1000) / 1000;
+    }
 
     // success?
     if (q.px === q.cx && q.py === q.cy) {
@@ -581,6 +629,11 @@ bot.callbackQuery(
 
 // ================== Commands menu =============
 async function setMyCommands() {
+  // remove any previous commands to avoid conflicts
+  await bot.api.deleteMyCommands().catch(()=>{});
+  await bot.api.deleteMyCommands({ language_code: "en" }).catch(()=>{});
+  await bot.api.deleteMyCommands({ language_code: "uk" }).catch(()=>{});
+
   const en = [
     { command: "tutorial", description: "Open tutorial" },
     { command: "me", description: "Show your info" },
@@ -594,14 +647,9 @@ async function setMyCommands() {
     { command: "lang", description: "Змінити мову" },
   ];
 
-  // Default (all users, any language)
   await bot.api.setMyCommands(en);
-
-  // Language-specific
   await bot.api.setMyCommands(en, { language_code: "en" });
   await bot.api.setMyCommands(uk, { language_code: "uk" });
-
-  // Private chats scope
   await bot.api.setMyCommands(en, { scope: { type: "all_private_chats" } });
   await bot.api.setMyCommands(uk, { scope: { type: "all_private_chats" }, language_code: "uk" });
 }

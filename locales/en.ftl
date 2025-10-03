@@ -25,13 +25,14 @@ greet =
   ❗️ Current task:
     • Start a quest
 welcome-back = 👋 *Ave*, { $name } — welcome back to the arcane adventures!
+version-notice = 🔔 *Update:* { $name }, the bot has been updated to *v{ $version }*.
 
 # Buttons (main)
 btn-quest = 🗺 Quest
 btn-me = 🧙 Me
 
 # Quest control buttons (9-grid)
-btn-look = 🔎 Lurk
+btn-look = 🔎 Lurking
 btn-up = ⬆️ Up
 btn-left = ⬅️ Left
 btn-right = ➡️ Right
@@ -60,6 +61,8 @@ me-base =
   ⚡️Energy: { $stamina }/{ $stamina_max } ⏰
 me-line-shards =   🔮Chaos shards found: { $shards_found }
 me-line-skills-header =   🧠Skills unlocked: { $skills_count }
+skill-name-lurking = Lurking
+skill-name-moving = Moving
 
 tutorial-intro-pre =
   🎉 You join the brave magi of 👀 Lurkers.
@@ -81,6 +84,7 @@ tutorial-step-reach-l1 =
   ✅ You completed a quest successfully.
   Next goal: reach *Level 1*.
   Progress: { $xp } / { $xp_target } XP.
+tutorial-task-complete-quest = ❗️ Current task: • Complete the quest you started.
 tutorial-dev = 🧪 Further steps are in development. Stay tuned!
 
 # Quest texts
@@ -102,7 +106,7 @@ stamina-tick = ⚡️ Your energy recovered slightly (+{ $amt }). Current: { $st
 stamina-full = 💪 You are full of energy. Adventures await you!
 
 # Skills
-skill-unlocked-first = 🎉 Congratulations! You unlocked skill progression — *Lurk* reached 1. Skills grow with use; keep playing to discover and train others!
+skill-unlocked-first = 🎉 Congratulations! You unlocked skill progression — *{ $skill }* reached 1. Skills grow with use; keep playing to discover and train others!
 
 # Changelog
 changelog-title = 📜 *Changelog* (latest)
