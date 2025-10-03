@@ -9,7 +9,9 @@ lang-set-uk = ✅ Language set to Ukrainian.
 
 # Greeting / welcome
 greet =
-  🎉 You join the brave magi of 👀 Lurkers.
+  👁 You open your eyes and see the moving aether.
+  Whispers of Eris echo in laughter, shadows of Chaos crawl across your vision.
+  Are you ready to transition from *Lurker* to *Magus*, from observing the dance of the world to *creating the Philosopher's Stone*?
 
   Head out on adventures to gain experience, increase your skill and other rewards.
   You earn 📖 experience *by completing quests*.
@@ -115,8 +117,6 @@ changelog-empty = (no changelog found)
 # Debug / hidden
 restored = ⚡️ Energy restored to { $stamina }.
 restart-done = 🔁 Character reset. Tutorial restarted; your progress is now fresh.
-
-# Debug / hidden
 aether-granted = ✨ You received { $gained } Aether. Total: { $aether }.
 
 # Quest events
