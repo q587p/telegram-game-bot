@@ -106,5 +106,9 @@ stamina-full = 💪 You are full of energy. Adventures await you!
 # Skills
 skill-unlocked-first = 🎉 Congratulations! You unlocked skill progression — *Lurk* reached 1. Skills grow with use; keep playing to discover and train others!
 
+# Changelog
+changelog-title = 📜 *Changelog* (latest)
+changelog-empty = (no changelog found)
+
 # Debug
 restored = ⚡️ Energy restored to { $stamina }.

@@ -14,7 +14,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.6";
+export const VERSION = "0.0.7";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -155,7 +155,7 @@ function escapeMarkdown(text: string): string {
 function percent(passed: number, total: number): string {
   if (total <= 0) return "0.00%";
   const pct = (passed / total) * 100;
-  return `${pct.toFixed(2)}%";
+  return `${pct.toFixed(2)}%`;
 }
 function randInt(min: number, maxInclusive: number) {
   return Math.floor(Math.random() * (maxInclusive - min + 1)) + min;
@@ -337,7 +337,7 @@ function tryLevelUp(p: Profile): boolean {
 
 // Lurk skill gain with scaling per 13 thresholds
 function lurkIncrement(current: number): number {
-  const tier = Math.floor(current / 13); // 0..∞
+  const tier = Math.floor(current / 13); // 0..∞, each tier halves the gain
   const inc = 0.1 * Math.pow(0.5, tier);
   return inc;
 }
@@ -412,6 +412,23 @@ bot.command("restore", async (ctx) => {
   await ctx.reply(ctx.t("restored", { stamina: String(p.stamina) }), {
     reply_markup: mainKb(ctx),
   });
+});
+
+// hidden changelog command — NOT in setMyCommands
+bot.command("changelog", async (ctx) => {
+  try {
+    const path = join(process.cwd(), "CHANGELOG.md");
+    const content = await fsp.readFile(path, "utf8");
+
+    // Extract the latest "## ..." section (up to the next "## " or end)
+    const m = content.match(/## [^\n]+\n(?:.*?\n)*?(?=^## |\Z)/ms);
+    const latest = m ? m[0].strip() : "";
+
+    const text = latest ? latest : "No entries.";
+    await ctx.reply(`${ctx.t("changelog-title")}\n\n${text}`, { parse_mode: "Markdown" });
+  } catch (e) {
+    await ctx.reply(ctx.t("changelog-empty"));
+  }
 });
 
 bot.command("tutorial", async (ctx) => {
@@ -504,7 +521,7 @@ bot.callbackQuery(
       const p = ctx.session.profile;
       const before = p.skills.lurk ?? 0;
       const inc = lurkIncrement(before);
-      const after = Math.round((before + inc) * 1000) / 1000; // keep 3 decimals
+      const after = Math.round((before + inc) * 1000) / 1000; // 3 decimals
       const unlockedBefore = Object.values(p.skills).filter(v => v >= 1).length;
       p.skills.lurk = after;
 

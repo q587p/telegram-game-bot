@@ -31,3 +31,8 @@
 
 ## 0.0.1
 - Minimal bot with /start, /help, language selection (EN/UK), persistent sessions, inline buttons, and basic game skeleton.
+
+## 0.0.7
+- Add hidden `/changelog` command (not registered in command menu). It prints the latest section(s) from `CHANGELOG.md`.
+- Fix percentage formatting bug in `percent()` function.
+- Keep all features from 0.0.6 (seeded quests, skill scaling, Energy terminology, etc.).
