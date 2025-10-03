@@ -44,3 +44,10 @@ README-QUICKSTART-PUBLIC.md
 apply-game-update.mjs
 fix-typecheck.mjs
 check-i18n-keys.mjs
+# Release helper files
+CHANGELOG-append-*.txt
+HOWTO-*.txt
+overlay-*.zip
+*.overlay.zip
+*.patch
+*.diff
