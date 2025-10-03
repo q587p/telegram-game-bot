@@ -41,3 +41,9 @@
 - Dev scripts switched to Node's `--import` with a tiny `register-ts-node.mjs` (avoids experimental loader warning and ESM quirks on Windows).
 - Fixed a minor bug in `/changelog` handler (`.strip()` → `.trim()`).
 - All features from 0.0.7 retained.
+
+## 0.0.9
+- Dev flow no longer uses ts-node at all. Switched to **compile-then-run**:
+  - `tsc -w` writes to `dist/`
+  - `nodemon` runs `node dist/bot.js` and restarts on changes
+- This avoids ESM loader quirks on Node 20/Windows and plays nice with OneDrive paths.

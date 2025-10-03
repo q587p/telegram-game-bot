@@ -14,7 +14,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.8";
+export const VERSION = "0.0.9";
 
 // ================== Types ====================
 type Skills = Record<string, number>;

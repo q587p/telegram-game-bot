@@ -1,11 +1,10 @@
 {
   "name": "telegram-game-bot",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --import ./register-ts-node.mjs src/bot.ts",
-    "dev:watch": "nodemon --exec node --import ./register-ts-node.mjs src/bot.ts -e ts,ftl",
+    "dev": "npm run build && concurrently -k -n BUILD,RUN -c auto \"tsc -w\" \"nodemon -q --watch dist dist/bot.js\"",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/bot.js"
   },
@@ -16,8 +15,9 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "ts-node": "^10.9.2",
     "typescript": "^5.6.3",
-    "nodemon": "^3.1.7"
+    "nodemon": "^3.1.7",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
   }
 }
