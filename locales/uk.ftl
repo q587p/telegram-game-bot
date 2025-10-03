@@ -142,3 +142,14 @@ portal-entered = 🌀 Ви ступаєте в портал…
 portal-search-placeholder = (тут має стартувати пошук — реалізуйте startChaosSearch(ctx))
 
 portal-skipped = Ви проігнорували портал та еманації хаосу. Можливо, це й на краще.
+
+# === Auto-added placeholders ===
+btn-portal-enter = [btn-portal-enter]
+btn-portal-skip = [btn-portal-skip]
+me-line-avg-moves = [me-line-avg-moves]
+me-line-ether = [me-line-ether]
+quest-rng-ether = [quest-rng-ether]
+quest-rng-waste = [quest-rng-waste]
+quest-rng-xp = [quest-rng-xp]
+tutorial-body = [tutorial-body]
+tutorial-task-start = [tutorial-task-start]

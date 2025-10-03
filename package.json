@@ -1,6 +1,6 @@
 {
   "name": "telegram-game-bot",
-  "version": "0.0.25",
+  "version": "0.0.29",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,9 @@
     "start": "node dist/bot.js",
     "preversion": "npm run typecheck",
     "version": "node scripts/update-version-banner.cjs && git add src/bot.ts",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "dev": "nodemon --watch src --exec \"npm run build && node dist/bot.js\"",
+    "lint": "echo \"lint disabled\""
   },
   "dependencies": {
     "grammy": "^1.38.2",

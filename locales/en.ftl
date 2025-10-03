@@ -147,3 +147,14 @@ portal-entered = 🌀 You step into the portal…
 portal-search-placeholder = (search starts here — implement startChaosSearch(ctx))
 
 portal-skipped = You ignore the portal and its chaotic emanations. Perhaps for the best.
+
+# === Auto-added placeholders ===
+btn-portal-enter = [btn-portal-enter]
+btn-portal-skip = [btn-portal-skip]
+me-line-avg-moves = [me-line-avg-moves]
+me-line-ether = [me-line-ether]
+quest-rng-ether = [quest-rng-ether]
+quest-rng-waste = [quest-rng-waste]
+quest-rng-xp = [quest-rng-xp]
+tutorial-body = [tutorial-body]
+tutorial-task-start = [tutorial-task-start]
