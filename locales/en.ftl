@@ -12,6 +12,7 @@ greet =
   🎉 You join the brave magi of 👀 Lurkers.
 
   Head out on adventures to gain experience, increase your skill and other rewards.
+  You earn 📖 experience *by completing quests*.
 
   🏅 Level:
     • You are currently at level { $level }.
@@ -28,9 +29,6 @@ welcome-back = 👋 Welcome back.
 # Buttons (main)
 btn-quest = 🗺 Quest
 btn-me = 🧙 Me
-
-# Language command button (only in /lang)
-btn-lang = 🌐 Language
 
 # Quest control buttons (9-grid)
 btn-look = 🔎 Lurk
@@ -52,7 +50,7 @@ help =
   /help — show this help
   /lang — change language
 
-# Me card
+# Me base + optional lines
 me-notice = ❗️You have unfinished business, check the /tutorial command.
 me-base =
   { $name }
@@ -60,7 +58,8 @@ me-base =
   🏅Level: { $level } { $percent }
   📖Exp: { $xp }/{ $xp_target }
   ⚡️Energy: { $stamina }/{ $stamina_max } ⏰
-  📜Quests: { $quests_started } total ({ $quests_succeeded } ✓ / { $quests_failed } ✗)
+me-line-shards =   🔮Chaos shards found: { $shards_found }
+me-line-skills =   🧠Skills unlocked: { $skills_count } (Lurk: { $lurk_level })
 
 tutorial-intro-pre =
   🎉 You join the brave magi of 👀 Lurkers.
@@ -109,9 +108,6 @@ skill-unlocked-first = 🎉 Congratulations! You unlocked skill progression — 
 changelog-title = 📜 *Changelog* (latest)
 changelog-empty = (no changelog found)
 
-# Debug
+# Debug / hidden
 restored = ⚡️ Energy restored to { $stamina }.
-
-me-line-shards =   🔮Chaos shards found: { $shards_found }
-me-line-skills =   🧠Skills unlocked: { $skills_count } (Lurk: { $lurk_level })
 restart-done = 🔁 Character reset. Tutorial restarted; your progress is now fresh.

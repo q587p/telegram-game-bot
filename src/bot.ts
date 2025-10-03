@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.13";
+export const VERSION = "0.0.14";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -22,7 +22,7 @@ type Profile = {
   level: number;
   xp: number;
   xpTarget: number;
-  stamina: number;       // internal name kept for compatibility (displayed as Energy)
+  stamina: number;       // displayed as Energy
   staminaMax: number;
   lastStaminaTs: number; // ms epoch, for auto-regen
   skills: Skills;        // e.g., { lurk: 0.3 }
@@ -53,7 +53,7 @@ type SessionData = {
 type MyContext = Context & SessionFlavor<SessionData> & I18nFlavor;
 
 // ================== Defaults =================
-const GRID = 5;
+const GRID_SIZE = 5;
 const XP_ON_CRYSTAL = 1;
 
 function nowMs() {
@@ -149,15 +149,12 @@ function displayNameFull(ctx: MyContext): string {
 }
 function escapeMarkdown(text: string): string {
   // Escape Telegram Markdown special chars: *, _, `, [, ], and backslash
-  return text.replace(/([\*_`\[\]\\])/g, '\$1');
+  return text.replace(/([\\*_`\\[\\]\\\\])/g, '\\$1');
 }
 function percent(passed: number, total: number): string {
   if (total <= 0) return "0.00%";
   const pct = (passed / total) * 100;
   return `${pct.toFixed(2)}%`;
-}
-function randInt(min: number, maxInclusive: number) {
-  return Math.floor(Math.random() * (maxInclusive - min + 1)) + min;
 }
 function ensureProfileMigrations(p: Profile) {
   if (p.staminaMax == null) p.staminaMax = 5;
@@ -188,8 +185,9 @@ function nextXpTargetFor(level: number): number {
 }
 
 // auto-regen (Energy): +1/min until max; notify user
+function now() { return Date.now(); }
 function regenAmount(p: Profile): number {
-  const n = nowMs();
+  const n = now();
   const diffMin = Math.floor((n - p.lastStaminaTs) / 60000);
   if (diffMin <= 0) return 0;
   const canGain = Math.max(0, p.staminaMax - p.stamina);
@@ -231,7 +229,7 @@ function mainKb(ctx: MyContext) {
 // quest — 3×3
 function questKb(ctx: MyContext) {
   return new InlineKeyboard()
-    .text(ctx.t("btn-look"), "q_look")  // labeled Lurk
+    .text(ctx.t("btn-look"), "q_look")
     .text(ctx.t("btn-up"), "q_up")
     .text(ctx.t("btn-empty"), "noop")
     .row()
@@ -249,7 +247,6 @@ const langKb = new InlineKeyboard()
   .text("English", "set_lang_en");
 
 // ================== Quest helpers =============
-const GRID_SIZE = 5;
 function createSeen(): boolean[][] {
   return Array.from({ length: GRID_SIZE }, () => Array.from({ length: GRID_SIZE }, () => false));
 }
@@ -302,7 +299,7 @@ function renderFullMap(q: Quest): string {
         line += "▫️"; // empty revealed
       }
     }
-    out += line + "\\n";
+    out += line + "\n";
   }
   return out.trimEnd();
 }
@@ -333,10 +330,8 @@ function tryLevelUp(p: Profile): boolean {
   }
   return leveled;
 }
-
-// Lurk skill gain with scaling per 13 thresholds
 function lurkIncrement(current: number): number {
-  const tier = Math.floor(current / 13); // 0..∞, each tier halves the gain
+  const tier = Math.floor(current / 13); // every 13 halves the gain
   const inc = 0.1 * Math.pow(0.5, tier);
   return inc;
 }
@@ -358,7 +353,6 @@ async function sendGreeting(ctx: MyContext) {
     p.seenStart = true;
   }
 }
-
 
 async function sendMe(ctx: MyContext) {
   const p = ctx.session.profile;
@@ -388,55 +382,8 @@ async function sendMe(ctx: MyContext) {
     lines.push(ctx.t("me-line-skills", { skills_count: String(skillsCount), lurk_level: String(lurkLevel) }));
   }
 
-  const text = lines.join("
-");
+  const text = lines.join("\n");
   await ctx.reply(text, { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
-}
-const skillsCount = Object.values(p.skills).filter(v => v >= 1).length;
-  const lurkLevel = (p.skills.lurk ?? 0).toFixed(2);
-
-  let lines: string[] = [];
-  lines.push(ctx.t("me-base", {
-    name,
-    level: String(p.level),
-    percent: pct,
-    xp: String(p.xp),
-    xp_target: String(p.xpTarget),
-    stamina: String(p.stamina),
-    stamina_max: String(p.staminaMax),
-  }));
-
-  if (p.crystalsFound > 0) {
-    lines.push(ctx.t("me-line-shards", { shards_found: String(p.crystalsFound) }));
-  }
-  if (skillsCount > 0) {
-    lines.push(ctx.t("me-line-skills", { skills_count: String(skillsCount), lurk_level: String(lurkLevel) }));
-  }
-
-  const text = lines.join("
-");
-  await ctx.reply(text, { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
-}
-  const skillsCount = Object.values(p.skills).filter(v => v >= 1).length;
-  const lurkLevel = (p.skills.lurk ?? 0).toFixed(2);
-  await ctx.reply(
-    ctx.t("me-card", {
-      name,
-      level: String(p.level),
-      percent: pct,
-      xp: String(p.xp),
-      xp_target: String(p.xpTarget),
-      stamina: String(p.stamina),
-      stamina_max: String(p.staminaMax),
-      crystals_found: String(p.crystalsFound),
-      quests_started: String(p.questsStarted),
-      quests_succeeded: String(p.questsSucceeded),
-      quests_failed: String(p.questsFailed),
-      skills_count: String(skillsCount),
-      lurk_level: String(lurkLevel),
-    }),
-    { parse_mode: "Markdown", reply_markup: mainKb(ctx) }
-  );
 }
 
 // ================== Commands ==================
@@ -458,12 +405,11 @@ bot.command("lang", async (ctx) => {
 bot.command("restore", async (ctx) => {
   const p = ctx.session.profile;
   p.stamina = p.staminaMax;
-  p.lastStaminaTs = nowMs();
+  p.lastStaminaTs = Date.now();
   await ctx.reply(ctx.t("restored", { stamina: String(p.stamina) }), {
     reply_markup: mainKb(ctx),
   });
 });
-
 
 // hidden restart command — resets character and tutorial progress
 bot.command("restart", async (ctx) => {
@@ -482,7 +428,7 @@ bot.command("changelog", async (ctx) => {
     const m = content.match(/## [^\n]+\n(?:.*?\n)*?(?=^## |\Z)/ms);
     const latest = m ? m[0].trim() : "";
 
-    const text = latest ? latest : "No entries.";
+    const text = latest ? latest : ctx.t("changelog-empty");
     await ctx.reply(`${ctx.t("changelog-title")}\n\n${text}`, { parse_mode: "Markdown" });
   } catch (e) {
     await ctx.reply(ctx.t("changelog-empty"));
@@ -574,7 +520,6 @@ bot.callbackQuery(
     }
 
     if (ctx.match === "q_look") {
-      // Lurk action: reveal and train skill with scaling
       revealAround(q);
       const p = ctx.session.profile;
       const before = p.skills.lurk ?? 0;

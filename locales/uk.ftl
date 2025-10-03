@@ -10,6 +10,7 @@ greet =
   🎉 Ти приєднався до хоробрих маґів 👀 Lurkers.
 
   Вирушай у пригоди, щоб здобувати досвід, підвищувати навички та отримувати інші винагороди.
+  Досвід 📖 заробляється *за проходження квестів*.
 
   🏅 Рівень:
     • Зараз твій рівень: { $level }.
@@ -26,9 +27,6 @@ welcome-back = 👋 Раді поверненню.
 # Кнопки (основні)
 btn-quest = 🗺 Квест
 btn-me = 🧙 Я
-
-# Кнопка мови (лише в /lang)
-btn-lang = 🌐 Мова
 
 # Керування квестом (сітка 3×3)
 btn-look = 🔎 Лурк
@@ -56,7 +54,8 @@ me-base =
   🏅Рівень: { $level } { $percent }
   📖Досвід: { $xp }/{ $xp_target }
   ⚡️Енерґія: { $stamina }/{ $stamina_max } ⏰
-  📜Квести: { $quests_started } всього ({ $quests_succeeded } ✓ / { $quests_failed } ✗)
+me-line-shards =   🔮Знайдено осколків Хаосу: { $shards_found }
+me-line-skills =   🧠Навички відкрито: { $skills_count } (Lurk: { $lurk_level })
 
 tutorial-intro-pre =
   🎉 Ти приєднався до хоробрих маґів 👀 Lurkers.
@@ -104,8 +103,6 @@ skill-unlocked-first = 🎉 Вітаємо! Ви відкрили проґрес
 changelog-title = 📜 *Список змін* (останнє)
 changelog-empty = (змін поки немає)
 
+# Debug / hidden
 restored = ⚡️ Енерґію відновлено до { $stamina }.
-
-me-line-shards =   🔮Знайдено осколків Хаосу: { $shards_found }
-me-line-skills =   🧠Навички відкрито: { $skills_count } (Lurk: { $lurk_level })
 restart-done = 🔁 Персонажа скинуто. Туторіал почнеться спочатку; прогрес обнулено.

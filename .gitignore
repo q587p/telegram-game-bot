@@ -16,6 +16,10 @@ dist/
 # App data
 data/sessions/
 
+# Local scratch
+/_/
+**/_/
+
 # OS / Editor
 .DS_Store
 Thumbs.db
@@ -29,3 +33,4 @@ Thumbs.db
 # Local scratch dir
 /_/
 **/_/
+
