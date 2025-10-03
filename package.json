@@ -1,11 +1,11 @@
 {
   "name": "telegram-game-bot",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --loader ts-node/esm src/bot.ts",
-    "dev:watch": "nodemon --exec node --loader ts-node/esm src/bot.ts -e ts,ftl",
+    "dev": "node --import ./register-ts-node.mjs src/bot.ts",
+    "dev:watch": "nodemon --exec node --import ./register-ts-node.mjs src/bot.ts -e ts,ftl",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/bot.js"
   },

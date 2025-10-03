@@ -14,7 +14,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.7";
+export const VERSION = "0.0.8";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -422,7 +422,7 @@ bot.command("changelog", async (ctx) => {
 
     // Extract the latest "## ..." section (up to the next "## " or end)
     const m = content.match(/## [^\n]+\n(?:.*?\n)*?(?=^## |\Z)/ms);
-    const latest = m ? m[0].strip() : "";
+    const latest = m ? m[0].trim() : "";
 
     const text = latest ? latest : "No entries.";
     await ctx.reply(`${ctx.t("changelog-title")}\n\n${text}`, { parse_mode: "Markdown" });

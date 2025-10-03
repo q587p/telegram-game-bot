@@ -36,3 +36,8 @@
 - Add hidden `/changelog` command (not registered in command menu). It prints the latest section(s) from `CHANGELOG.md`.
 - Fix percentage formatting bug in `percent()` function.
 - Keep all features from 0.0.6 (seeded quests, skill scaling, Energy terminology, etc.).
+
+## 0.0.8
+- Dev scripts switched to Node's `--import` with a tiny `register-ts-node.mjs` (avoids experimental loader warning and ESM quirks on Windows).
+- Fixed a minor bug in `/changelog` handler (`.strip()` → `.trim()`).
+- All features from 0.0.7 retained.
