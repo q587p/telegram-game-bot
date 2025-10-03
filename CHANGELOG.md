@@ -36,7 +36,7 @@
 - Robust session/profile init in quest module (fixes ctx.session undefined).
 - ESM import fix: use \import "./quest-rework.js"\ with NodeNext/Node16 resolution.
 
-## 0.0.25 — Aetherwalkers rename & intro
+## 0.0.26 — Aetherwalkers rename & intro
 - README updated with Aetherwalkers name, dual-language description, features, and setup.
 - New /start greeting aligned with Aetherwalkers lore (EN/UK locales).
 - Added boot log: `[BOOT] Launching Telegram bot vX.Y.Z …`.
