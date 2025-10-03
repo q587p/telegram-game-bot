@@ -15,7 +15,7 @@ import setupQuest from "./quest-rework.js";
 
 
 // ================== Version ==================
-export const VERSION = "0.0.26";
+export const VERSION = "0.0.28";
 
 console.log(`[BOOT] Launching Telegram bot v${VERSION} …`);
 
