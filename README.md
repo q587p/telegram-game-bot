@@ -1,10 +1,49 @@
-# Telegram Game Bot (0.0.23)
+# Aetherwalkers (Етерні мандрівники)
 
-- Console banner: “Server started — Telegram bot vX.Y.Z (long polling)”.
-- Walls UX: on boundary bump, map shifts visually and shows a virtual wall outside the grid.
-- Everything else as in 0.0.19 (EN/UK i18n, inline buttons, seeded quests, energy regen, skills, persisted sessions).
+> This is a game about everything and nothing: the laughter of Goddess Eris, the shadows of Chaos, the Will of Thelema, the face of Death, and the hymn to Satan. You can simply lurk, read amusing texts, and watch what unfolds; or step onto the path of initiation and undergo the full cycle of transformation into the immortal form of the Philosopher’s Stone.  
 
-## Quick Start
+> Це гра про все і ні про що: сміх богині Еріди, тіні Хаосу, Волю Телеми, обличчя Смерті та гімн Сатані. Ви можете просто підглядати, читати цікаві тексти та стежити за розвитком подій; або ж ступити на шлях ініціації та пройти повний цикл перетворення у безсмертну форму Філософського каменю.   
+
+---
+
+## 🌀 About
+**Aetherwalkers** is a text-based role-playing game in the Telegram bot format.
+Follow the path from Lurker to Magus! 
+
+**Етерні мандрівники** — це текстова рольова гра у форматі Телеґрам-бота.   
+Пройди шлях від Підглядача до Маґуса!
+
+---
+
+## 🎮 Features
+- Complete tasks and grow in levels and above yourself. 
+- Read occult texts, aphorisms, chaotic jokes, and watch how the world around you changes.  
+- Follow this path alone or create/join covens, orders, guilds, and other associations, help/compete with others. 
+- Become part of the **Magnus Opus** and create your own philosopher's stone.   
+
+- Виконуй завдання та рости в рівнях і над собою.   
+- Читай окультні тексти, афоризми, хаотичні жарти й дивись, як світ навколо тебе змінюється.  
+- Йди цим шляхом сам чи створюй/вступай в ковени, ордени, гільдії та інші об’єднання, допомагай/змагайся з іншими. 
+- Стань частиною **Великої Роботи** і створи власний філософський камінь.   
+
+---
+
+## 🚀 Getting Started
+1. Open the bot in Telegram.  
+2. Press **/start**.  
+3. Complete the tutorial (/tutorial) 
+ 
+1. Відкрий бота у Telegram.  
+2. Натисни **/start**.  
+3. Пройди навчання (/tutorial) 
+
+---
+
+## 📖 License
+
+MIT
+
+---
 
 **Requirements:** Node.js 18+ (LTS recommended)
 
@@ -33,8 +72,6 @@ On start you should see:
 
 ```
 BOT_TOKEN=123456789:ABC...your_bot_token...   # required
-NODE_ENV=production                           # optional
-ADMIN_IDS=123456789,987654321                 # optional: restrict hidden debug commands to these user IDs
 ```
 
 > Keep your token private. Do not commit `.env`.
@@ -43,9 +80,10 @@ ADMIN_IDS=123456789,987654321                 # optional: restrict hidden debug 
 
 - **/start** — start the bot, language selection on first run, greeting.
 - **/help** — short help text.
+- **/lang** — change language.
+- **/tutorial** — details about first steps.
 - **/me** (alias **/profile**) — your profile: level, exp, energy, stats.
 - **/version** — current bot version.
-- *(hidden)* `/aether` — +13 Aether (for testing; ideally admin‑only).
 
 ## Development
 
