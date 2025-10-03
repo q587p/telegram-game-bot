@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.17";
+export const VERSION = "0.0.18";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -168,7 +168,6 @@ function ensureProfileMigrations(p: Profile) {
   if ((p as any).seenStart == null) (p as any).seenStart = false;
   if (p.xpTarget == null || p.xpTarget < 13) p.xpTarget = 13;
   if (!p.skills) p.skills = {};
-  // rename legacy key "lurk"→"lurking"
   const anySkills: any = p.skills;
   if (anySkills.lurk != null && anySkills.lurking == null) {
     anySkills.lurking = anySkills.lurk;
@@ -396,7 +395,7 @@ async function sendMe(ctx: MyContext) {
   }
   const lurking = p.skills.lurking ?? 0;
   const moving = p.skills.moving ?? 0;
-  const skillsUnlocked = (Math.floor(lurking) >= 1) + (Math.floor(moving) >= 1);
+  const skillsUnlocked = [lurking, moving].filter(v => Math.floor(v) >= 1).length;
 
   const lines: string[] = [];
   lines.push(ctx.t("me-base", {
@@ -460,10 +459,10 @@ bot.command("changelog", async (ctx) => {
   try {
     const path = join(process.cwd(), "CHANGELOG.md");
     const content = await fsp.readFile(path, "utf8");
-    const m = content.match(/## [^\n]+\n(?:.*?\n)*?(?=^## |\Z)/ms);
+    const m = content.match(/## [^\\n]+\\n(?:.*?\\n)*?(?=^## |\\Z)/ms);
     const latest = m ? m[0].trim() : "";
     const text = latest ? latest : ctx.t("changelog-empty");
-    await ctx.reply(`${ctx.t("changelog-title")}\n\n${text}`, { parse_mode: "Markdown" });
+    await ctx.reply(`${ctx.t("changelog-title")}\\n\\n${text}`, { parse_mode: "Markdown" });
   } catch {
     await ctx.reply(ctx.t("changelog-empty"));
   }

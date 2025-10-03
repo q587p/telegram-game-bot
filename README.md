@@ -1,4 +1,4 @@
-# Telegram Game Bot (0.0.17)
+# Telegram Game Bot (0.0.18)
 
 - EN/UK i18n (Fluent `.ftl`)
 - Commands: `/tutorial`, `/me`, `/help`, `/lang` (hidden: `/restore`, `/restart`, `/changelog`, `/fixmenu`)
