@@ -11,9 +11,11 @@ import { I18n, I18nFlavor } from "@grammyjs/i18n";
 import { mkdirSync, existsSync } from "node:fs";
 import { promises as fsp } from "node:fs";
 import { join } from "node:path";
+import setupQuest from "./quest-rework.js";
+
 
 // ================== Version ==================
-export const VERSION = "0.0.23";
+export const VERSION = "0.0.24";
 
 console.log(`[BOOT] Launching Telegram bot v${VERSION} …`);
 
@@ -131,6 +133,7 @@ if (!token) {
   process.exit(1);
 }
 const bot = new Bot<MyContext>(token);
+setupQuest(bot);
 
 // Global error handler
 bot.catch((err) => {

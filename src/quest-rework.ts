@@ -1,13 +1,37 @@
-import { InlineKeyboard, type Context } from "grammy";
+import { InlineKeyboard } from "grammy";
 
 /**
- * Plug-in to add randomized quest outcomes and portal flow.
- * Usage in src/bot.ts:
- *   import { setupQuest } from "./quest-rework";
- *   setupQuest(bot);
+ * Robust quest module.
+ * - Defensive session/profile init (won't crash if session middleware is registered later).
+ * - New randomized outcomes: +XP / fun / +1..5 Aether / Portal (cost 13 to enter).
+ * - Uses existing i18n keys: quest-gain-xp, quest-fun-no-gain, quest-find-aether,
+ *   quest-portal-found2, quest-portal-insufficient, portal-enter, portal-skip,
+ *   portal-entered, portal-search-placeholder, portal-skipped.
  */
-export function setupQuest(bot: any) {
-  // Randomized quest outcome (a/b/c/d)
+export default function setupQuest(bot: any) {
+  // Defensive guard: ensure ctx.session and ctx.session.profile exist.
+  bot.use(async (ctx: any, next: any) => {
+    const s = (ctx.session ??= {} as any);
+    if (!s.profile) {
+      s.profile = {
+        // minimal safe defaults; merged with any existing fields
+        xp: 0,
+        aether: 0,
+        skills: { lurk: 0, move: 0 },
+        crystalsFound: 0,
+        movesTotal: 0,
+        searchRuns: 0,
+        _runMoves: 0,
+      };
+    } else {
+      // ensure required fields exist
+      s.profile.aether ??= 0;
+      s.profile.skills ??= { lurk: 0, move: 0 };
+    }
+    await next();
+  });
+
+  // ================== Quest command ==================
   bot.command("quest", async (ctx: any) => {
     const p = ctx.session.profile;
 
@@ -70,10 +94,6 @@ export function setupQuest(bot: any) {
       await (globalThis as any).sendGreeting(ctx);
     } else if (typeof (globalThis as any).sendMe === "function") {
       await (globalThis as any).sendMe(ctx);
-    } else {
-      await ctx.reply(ctx.t("me"));
     }
   });
 }
-
-export default setupQuest;
