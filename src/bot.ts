@@ -13,7 +13,7 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 // ================== Version ==================
-export const VERSION = "0.0.18";
+export const VERSION = "0.0.20";
 
 // ================== Types ====================
 type Skills = Record<string, number>;
@@ -36,6 +36,7 @@ type Profile = {
 
 type Quest = {
   active: boolean;
+  bumpDir?: "up" | "down" | "left" | "right";
   gridSize: number; // 5
   px: number;
   py: number;
@@ -43,7 +44,7 @@ type Quest = {
   cy: number;
   seed: number;
   seen: boolean[][]; // fog of war (true = revealed)
-  walls: boolean[][]; // simple wall marks on border bumps
+  walls: boolean[][]; // reserved (unused for visual bump)
 };
 
 type SessionData = {
@@ -125,8 +126,9 @@ bot.catch((err) => {
 });
 
 // Sessions: persisted under data/sessions/
+// (use untyped session() for compatibility across grammy versions)
 const storage = new FileStorage<SessionData>(join(process.cwd(), "data", "sessions"));
-bot.use(session<SessionData, MyContext>({ initial: () => defaultSession(), storage }));
+bot.use(session({ initial: () => defaultSession(), storage }));
 
 // i18n: uk default, locales/*.ftl
 const i18n = new I18n<MyContext>({
@@ -210,23 +212,23 @@ function regenAmount(p: Profile): number {
 
 // Version notifier + regen + migrations
 bot.use(async (ctx, next) => {
-  const p = ctx.session?.profile;
+  const p = (ctx as any).session?.profile as Profile | undefined;
   if (p) {
     ensureProfileMigrations(p);
     // version notice
     if (p.lastSeenVersion !== VERSION) {
-      const name = escapeMarkdown(displayNameFull(ctx));
-      await ctx.reply(ctx.t("version-notice", { version: VERSION, name }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as MyContext) });
+      const name = escapeMarkdown(displayNameFull(ctx as any));
+      await ctx.reply((ctx as any).t("version-notice", { version: VERSION, name }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as any) });
       p.lastSeenVersion = VERSION;
     }
-    const hasActiveQuest = !!ctx.session?.quest?.active;
+    const hasActiveQuest = !!(ctx as any).session?.quest?.active;
     if (!hasActiveQuest) {
       const gained = regenAmount(p);
       if (gained > 0) {
         if (p.stamina >= p.staminaMax) {
-          await ctx.reply(ctx.t("stamina-full"));
+          await ctx.reply((ctx as any).t("stamina-full"));
         } else {
-          await ctx.reply(ctx.t("stamina-tick", { amt: String(gained), stamina: String(p.stamina) }));
+          await ctx.reply((ctx as any).t("stamina-tick", { amt: String(gained), stamina: String(p.stamina) }));
         }
       }
     }
@@ -238,24 +240,24 @@ bot.use(async (ctx, next) => {
 // main — only Me (first) and Quest (second)
 function mainKb(ctx: MyContext) {
   return new InlineKeyboard()
-    .text(ctx.t("btn-me"), "show_me")
-    .text(ctx.t("btn-quest"), "quest_lurk");
+    .text((ctx as any).t("btn-me"), "show_me")
+    .text((ctx as any).t("btn-quest"), "quest_lurk");
 }
 
 // quest — 3×3
 function questKb(ctx: MyContext) {
   return new InlineKeyboard()
-    .text(ctx.t("btn-look"), "q_look")
-    .text(ctx.t("btn-up"), "q_up")
-    .text(ctx.t("btn-empty"), "noop")
+    .text((ctx as any).t("btn-look"), "q_look")
+    .text((ctx as any).t("btn-up"), "q_up")
+    .text((ctx as any).t("btn-empty"), "noop")
     .row()
-    .text(ctx.t("btn-left"), "q_left")
-    .text(ctx.t("btn-you"), "noop")
-    .text(ctx.t("btn-right"), "q_right")
+    .text((ctx as any).t("btn-left"), "q_left")
+    .text((ctx as any).t("btn-you"), "noop")
+    .text((ctx as any).t("btn-right"), "q_right")
     .row()
-    .text(ctx.t("btn-empty"), "noop")
-    .text(ctx.t("btn-down"), "q_down")
-    .text(ctx.t("btn-surrender"), "q_surrender");
+    .text((ctx as any).t("btn-empty"), "noop")
+    .text((ctx as any).t("btn-down"), "q_down")
+    .text((ctx as any).t("btn-surrender"), "q_surrender");
 }
 
 const langKb = new InlineKeyboard()
@@ -301,46 +303,61 @@ function startQuest(p: Profile): Quest {
   if (cx === px && cy === py) {
     cx = (cx + 1) % GRID_SIZE;
   }
-  const q: Quest = { active: true, gridSize: GRID_SIZE, px, py, cx, cy, seed, seen: createSeen(), walls: createWalls() };
+  const q: Quest = { active: true, bumpDir: undefined, gridSize: GRID_SIZE, px, py, cx, cy, seed, seen: createSeen(), walls: createWalls() };
   // reveal starting tile only
   q.seen[py][px] = true;
   return q;
 }
 
-function renderFullMap(q: Quest): string {
-  let out = "";
+function renderMap(q: Quest): string {
+  function cellChar(x: number, y: number): string {
+    const isPlayer = x === q.px && y === q.py;
+    const isShard  = x === q.cx && y === q.cy;
+    if (!q.seen[y][x]) return GRID_FOG;
+    if (isPlayer) return GRID_PLAYER;
+    if (isShard)  return GRID_SHARD;
+    return GRID_FLOOR;
+  }
+
+  // Base 5×5 map
+  let baseRows: string[] = [];
   for (let y = 0; y < q.gridSize; y++) {
     let line = "";
     for (let x = 0; x < q.gridSize; x++) {
-      const isPlayer = x === q.px && y === q.py;
-      const isShard = x === q.cx && y === q.cy;
-      if (q.walls[y][x]) {
-        line += GRID_WALL;
-      } else if (!q.seen[y][x]) {
-        line += GRID_FOG;
-      } else if (isPlayer) {
-        line += GRID_PLAYER;
-      } else if (isShard) {
-        line += GRID_SHARD;
-      } else {
-        line += GRID_FLOOR;
-      }
+      line += cellChar(x, y);
     }
-    out += line + "\n";
+    baseRows.push(line);
   }
-  return out.trimEnd();
+
+  // Bump overlay: visualize a wall just OUTSIDE the boundary in the attempted direction
+  if (q.bumpDir === "right") {
+    baseRows = baseRows.map((row, y) => row + " " + (y === q.py ? GRID_WALL : GRID_FOG));
+  } else if (q.bumpDir === "left") {
+    baseRows = baseRows.map((row, y) => (y === q.py ? GRID_WALL : GRID_FOG) + " " + row);
+  } else if (q.bumpDir === "up") {
+    let top = "";
+    for (let x = 0; x < q.gridSize; x++) top += (x === q.px ? GRID_WALL : GRID_FOG);
+    baseRows = [top, ...baseRows];
+  } else if (q.bumpDir === "down") {
+    let bottom = "";
+    for (let x = 0; x < q.gridSize; x++) bottom += (x === q.px ? GRID_WALL : GRID_FOG);
+    baseRows = [...baseRows, bottom];
+  }
+
+  return baseRows.join("\n");
 }
 
 function move(q: Quest, dir: "up" | "down" | "left" | "right"): boolean {
+  q.bumpDir = undefined;
   let moved = false;
   if (dir === "up") {
-    if (q.py > 0) { q.py -= 1; moved = true; } else { q.walls[0][q.px] = true; q.seen[0][q.px] = true; }
+    if (q.py > 0) { q.py -= 1; moved = true; } else { q.bumpDir = "up"; }
   } else if (dir === "down") {
-    if (q.py < q.gridSize - 1) { q.py += 1; moved = true; } else { q.walls[q.gridSize - 1][q.px] = true; q.seen[q.gridSize - 1][q.px] = true; }
+    if (q.py < q.gridSize - 1) { q.py += 1; moved = true; } else { q.bumpDir = "down"; }
   } else if (dir === "left") {
-    if (q.px > 0) { q.px -= 1; moved = true; } else { q.walls[q.py][0] = true; q.seen[q.py][0] = true; }
+    if (q.px > 0) { q.px -= 1; moved = true; } else { q.bumpDir = "left"; }
   } else if (dir === "right") {
-    if (q.px < q.gridSize - 1) { q.px += 1; moved = true; } else { q.walls[q.py][q.gridSize - 1] = true; q.seen[q.py][q.gridSize - 1] = true; }
+    if (q.px < q.gridSize - 1) { q.px += 1; moved = true; } else { q.bumpDir = "right"; }
   }
   if (moved) {
     q.seen[q.py][q.px] = true; // only reveal current tile
@@ -367,15 +384,15 @@ function skillIncrement(current: number): number {
 
 // ================== Core replies ==============
 async function sendGreeting(ctx: MyContext) {
-  const p = ctx.session.profile;
+  const p = (ctx as any).session.profile as Profile;
   if (p.seenStart) {
-    await ctx.reply(ctx.t("welcome-back", { name: escapeMarkdown(displayNameFull(ctx)) }), {
+    await ctx.reply((ctx as any).t("welcome-back", { name: escapeMarkdown(displayNameFull(ctx as any)) }), {
       parse_mode: "Markdown",
       reply_markup: mainKb(ctx),
     });
   } else {
     await ctx.reply(
-      ctx.t("greet", {
+      (ctx as any).t("greet", {
         level: String(p.level),
         xp_target: String(p.xpTarget),
         stamina: String(p.stamina),
@@ -387,18 +404,18 @@ async function sendGreeting(ctx: MyContext) {
 }
 
 async function sendMe(ctx: MyContext) {
-  const p = ctx.session.profile;
-  const name = escapeMarkdown(displayNameFull(ctx));
+  const p = (ctx as any).session.profile as Profile;
+  const name = escapeMarkdown(displayNameFull(ctx as any));
   const pct = percent(p.xp, p.xpTarget);
   if (p.questsSucceeded === 0) {
-    await ctx.reply(ctx.t("me-notice"));
+    await ctx.reply((ctx as any).t("me-notice"));
   }
   const lurking = p.skills.lurking ?? 0;
   const moving = p.skills.moving ?? 0;
   const skillsUnlocked = [lurking, moving].filter(v => Math.floor(v) >= 1).length;
 
   const lines: string[] = [];
-  lines.push(ctx.t("me-base", {
+  lines.push((ctx as any).t("me-base", {
     name,
     level: String(p.level),
     percent: pct,
@@ -409,16 +426,16 @@ async function sendMe(ctx: MyContext) {
   }));
 
   if (p.crystalsFound > 0) {
-    lines.push(ctx.t("me-line-shards", { shards_found: String(p.crystalsFound) }));
+    lines.push((ctx as any).t("me-line-shards", { shards_found: String(p.crystalsFound) }));
   }
   if (skillsUnlocked > 0) {
-    lines.push(ctx.t("me-line-skills-header", { skills_count: String(skillsUnlocked) }));
-    if (Math.floor(lurking) >= 1) lines.push(`• ${ctx.t("skill-name-lurking")}: ${Math.floor(lurking)}`);
-    if (Math.floor(moving) >= 1)  lines.push(`• ${ctx.t("skill-name-moving")}: ${Math.floor(moving)}`);
+    lines.push((ctx as any).t("me-line-skills-header", { skills_count: String(skillsUnlocked) }));
+    if (Math.floor(lurking) >= 1) lines.push(`• ${(ctx as any).t("skill-name-lurking")}: ${Math.floor(lurking)}`);
+    if (Math.floor(moving) >= 1)  lines.push(`• ${(ctx as any).t("skill-name-moving")}: ${Math.floor(moving)}`);
   }
 
   const text = lines.join("\n");
-  const kb = ctx.session.quest?.active ? questKb(ctx) : mainKb(ctx);
+  const kb = (ctx as any).session.quest?.active ? questKb(ctx) : mainKb(ctx);
   await ctx.reply(text, { parse_mode: "Markdown", reply_markup: kb });
 }
 
@@ -428,29 +445,29 @@ bot.command("version", async (ctx) => {
 });
 
 bot.command("help", async (ctx) => {
-  await ctx.reply(ctx.t("help"), { parse_mode: "Markdown" });
+  await ctx.reply((ctx as any).t("help"), { parse_mode: "Markdown" });
 });
 
 bot.command(["me", "profile"], sendMe);
 
 bot.command("lang", async (ctx) => {
-  await ctx.reply(ctx.t("choose-language"), { reply_markup: langKb });
+  await ctx.reply((ctx as any).t("choose-language"), { reply_markup: langKb });
 });
 
 // hidden debug command — restore energy
 bot.command("restore", async (ctx) => {
-  const p = ctx.session.profile;
+  const p = (ctx as any).session.profile as Profile;
   p.stamina = p.staminaMax;
   p.lastStaminaTs = Date.now();
-  await ctx.reply(ctx.t("restored", { stamina: String(p.stamina) }), {
+  await ctx.reply((ctx as any).t("restored", { stamina: String(p.stamina) }), {
     reply_markup: mainKb(ctx),
   });
 });
 
 // hidden restart command — resets character and tutorial progress
 bot.command("restart", async (ctx) => {
-  ctx.session = defaultSession();
-  await ctx.reply(ctx.t("restart-done"));
+  (ctx as any).session = defaultSession();
+  await ctx.reply((ctx as any).t("restart-done"));
   await sendGreeting(ctx);
 });
 
@@ -459,26 +476,26 @@ bot.command("changelog", async (ctx) => {
   try {
     const path = join(process.cwd(), "CHANGELOG.md");
     const content = await fsp.readFile(path, "utf8");
-    const m = content.match(/## [^\\n]+\\n(?:.*?\\n)*?(?=^## |\\Z)/ms);
+    const m = content.match(/## [^\n]+\n(?:.*?\n)*?(?=^## |\Z)/ms);
     const latest = m ? m[0].trim() : "";
-    const text = latest ? latest : ctx.t("changelog-empty");
-    await ctx.reply(`${ctx.t("changelog-title")}\\n\\n${text}`, { parse_mode: "Markdown" });
+    const text = latest ? latest : (ctx as any).t("changelog-empty");
+    await ctx.reply(`${(ctx as any).t("changelog-title")}\n\n${text}`, { parse_mode: "Markdown" });
   } catch {
-    await ctx.reply(ctx.t("changelog-empty"));
+    await ctx.reply((ctx as any).t("changelog-empty"));
   }
 });
 
 bot.command("tutorial", async (ctx) => {
-  const p = ctx.session.profile;
-  const questActive = !!ctx.session.quest?.active;
+  const p = (ctx as any).session.profile as Profile;
+  const questActive = !!(ctx as any).session.quest?.active;
   if (!p.questsSucceeded && !questActive) {
-    await ctx.reply(ctx.t("tutorial-intro-pre", { level: String(p.level), xp_target: String(p.xpTarget), stamina: String(p.stamina) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
+    await ctx.reply((ctx as any).t("tutorial-intro-pre", { level: String(p.level), xp_target: String(p.xpTarget), stamina: String(p.stamina) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   } else if (questActive) {
-    await ctx.reply(ctx.t("tutorial-task-complete-quest"), { parse_mode: "Markdown", reply_markup: questKb(ctx) });
+    await ctx.reply((ctx as any).t("tutorial-task-complete-quest"), { parse_mode: "Markdown", reply_markup: questKb(ctx) });
   } else if (p.level < 1) {
-    await ctx.reply(ctx.t("tutorial-step-reach-l1", { xp: String(p.xp), xp_target: String(p.xpTarget) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
+    await ctx.reply((ctx as any).t("tutorial-step-reach-l1", { xp: String(p.xp), xp_target: String(p.xpTarget) }), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   } else {
-    await ctx.reply(ctx.t("tutorial-dev"), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
+    await ctx.reply((ctx as any).t("tutorial-dev"), { parse_mode: "Markdown", reply_markup: mainKb(ctx) });
   }
 });
 
@@ -489,9 +506,9 @@ bot.command("fixmenu", async (ctx) => {
 });
 
 bot.command("start", async (ctx) => {
-  if (!ctx.session.locale) {
-    await ctx.reply(ctx.t("start-lang-intro"));
-    await ctx.reply(ctx.t("choose-language"), { reply_markup: langKb });
+  if (!(ctx as any).session.locale) {
+    await ctx.reply((ctx as any).t("start-lang-intro"));
+    await ctx.reply((ctx as any).t("choose-language"), { reply_markup: langKb });
     return;
   }
   await setMyCommands(); // ensure menu on /start
@@ -500,19 +517,19 @@ bot.command("start", async (ctx) => {
 
 // ================== Language callbacks ========
 bot.callbackQuery("set_lang_uk", async (ctx) => {
-  ctx.session.locale = "uk";
-  await ctx.i18n.renegotiateLocale();
+  (ctx as any).session.locale = "uk";
+  await (ctx as any).i18n.renegotiateLocale();
   await ctx.answerCallbackQuery();
-  await ctx.editMessageText(ctx.t("lang-set-uk"));
+  await ctx.editMessageText((ctx as any).t("lang-set-uk"));
   await setMyCommands();
   await sendGreeting(ctx);
 });
 
 bot.callbackQuery("set_lang_en", async (ctx) => {
-  ctx.session.locale = "en";
-  await ctx.i18n.renegotiateLocale();
+  (ctx as any).session.locale = "en";
+  await (ctx as any).i18n.renegotiateLocale();
   await ctx.answerCallbackQuery();
-  await ctx.editMessageText(ctx.t("lang-set-en"));
+  await ctx.editMessageText((ctx as any).t("lang-set-en"));
   await setMyCommands();
   await sendGreeting(ctx);
 });
@@ -524,72 +541,73 @@ bot.callbackQuery("show_me", async (ctx) => {
 });
 
 bot.callbackQuery("quest_lurk", async (ctx) => {
-  const p = ctx.session.profile;
+  const p = (ctx as any).session.profile as Profile;
   await ctx.answerCallbackQuery();
 
   // already on a quest?
-  if (ctx.session.quest?.active) {
-    await ctx.reply(ctx.t("quest-already"), { reply_markup: questKb(ctx) });
+  if ((ctx as any).session.quest?.active) {
+    await ctx.reply((ctx as any).t("quest-already"), { reply_markup: questKb(ctx) });
     return;
   }
 
   if (p.stamina <= 0) {
-    await ctx.reply(ctx.t("no-stamina"), { reply_markup: mainKb(ctx) });
+    await ctx.reply((ctx as any).t("no-stamina"), { reply_markup: mainKb(ctx) });
     return;
   }
 
   // start quest
-  ctx.session.quest = startQuest(p);
-  await ctx.reply(ctx.t("quest-intro-seed", { seed: String(ctx.session.quest.seed) }), { parse_mode: "Markdown" });
-  await ctx.reply(renderFullMap(ctx.session.quest), { reply_markup: questKb(ctx) });
+  (ctx as any).session.quest = startQuest(p);
+  await ctx.reply((ctx as any).t("quest-intro-seed", { seed: String((ctx as any).session.quest.seed) }), { parse_mode: "Markdown" });
+  await ctx.reply(renderMap((ctx as any).session.quest), { reply_markup: questKb(ctx) });
 });
 
 // ================== Quest controls ============
 bot.callbackQuery(
   ["q_look", "q_up", "q_down", "q_left", "q_right", "q_surrender", "noop"],
   async (ctx) => {
-    const q = ctx.session.quest;
+    const q = (ctx as any).session.quest as Quest | undefined;
     await ctx.answerCallbackQuery();
 
     if (!q?.active) {
-      await ctx.reply(ctx.t("quest-not-active"), { reply_markup: mainKb(ctx as MyContext) });
+      await ctx.reply((ctx as any).t("quest-not-active"), { reply_markup: mainKb(ctx as any) });
       return;
     }
 
-    if (ctx.match === "q_surrender") {
-      ctx.session.profile.questsFailed += 1;
+    if ((ctx as any).match === "q_surrender") {
+      (ctx as any).session.profile.questsFailed += 1;
       q.active = false;
-      ctx.session.quest = undefined;
-      await ctx.reply(ctx.t("quest-surrendered"), { reply_markup: mainKb(ctx as MyContext) });
+      (ctx as any).session.quest = undefined;
+      await ctx.reply((ctx as any).t("quest-surrendered"), { reply_markup: mainKb(ctx as any) });
       return;
     }
 
-    if (ctx.match === "q_look") {
+    if ((ctx as any).match === "q_look") {
+      q.bumpDir = undefined;
       revealAround(q);
-      const p = ctx.session.profile;
+      const p = (ctx as any).session.profile as Profile;
       const before = p.skills.lurking ?? 0;
       const inc = skillIncrement(before);
       const after = Math.round((before + inc) * 1000) / 1000;
       const unlockedBefore = Math.floor(before) >= 1 ? 1 : 0;
       p.skills.lurking = after;
 
-      await ctx.reply(renderFullMap(q), { reply_markup: questKb(ctx as MyContext) });
+      await ctx.reply(renderMap(q), { reply_markup: questKb(ctx as any) });
 
       if (Math.floor(before) < 1 && Math.floor(after) >= 1 && unlockedBefore === 0) {
-        await ctx.reply(ctx.t("skill-unlocked-first", { skill: ctx.t("skill-name-lurking") }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as MyContext) });
+        await ctx.reply((ctx as any).t("skill-unlocked-first", { skill: (ctx as any).t("skill-name-lurking") }), { parse_mode: "Markdown", reply_markup: mainKb(ctx as any) });
       }
       return;
     }
 
     let moved = false;
-    if (ctx.match === "q_up") moved = move(q, "up");
-    else if (ctx.match === "q_down") moved = move(q, "down");
-    else if (ctx.match === "q_left") moved = move(q, "left");
-    else if (ctx.match === "q_right") moved = move(q, "right");
+    if ((ctx as any).match === "q_up") moved = move(q, "up");
+    else if ((ctx as any).match === "q_down") moved = move(q, "down");
+    else if ((ctx as any).match === "q_left") moved = move(q, "left");
+    else if ((ctx as any).match === "q_right") moved = move(q, "right");
 
     if (moved) {
       // moving skill gains
-      const p = ctx.session.profile;
+      const p = (ctx as any).session.profile as Profile;
       const b = p.skills.moving ?? 0;
       const inc = skillIncrement(b);
       p.skills.moving = Math.round((b + inc) * 1000) / 1000;
@@ -597,38 +615,38 @@ bot.callbackQuery(
 
     // success?
     if (q.px === q.cx && q.py === q.cy) {
-      const p = ctx.session.profile;
+      const p = (ctx as any).session.profile as Profile;
       p.xp += XP_ON_SHARD;
       p.crystalsFound += 1;
       p.questsSucceeded += 1;
 
       const leveled = tryLevelUp(p);
       q.active = false;
-      ctx.session.quest = undefined;
+      (ctx as any).session.quest = undefined;
 
       await ctx.reply(
-        ctx.t("quest-complete", {
+        (ctx as any).t("quest-complete", {
           xp_gain: String(XP_ON_SHARD),
           xp: String(p.xp),
           xp_target: String(p.xpTarget),
           stamina: String(p.stamina),
         }),
-        { reply_markup: mainKb(ctx as MyContext), parse_mode: "Markdown" }
+        { reply_markup: mainKb(ctx as any), parse_mode: "Markdown" }
       );
       if (leveled) {
-        await ctx.reply(ctx.t("leveled-up", { level: String(p.level) }), { reply_markup: mainKb(ctx as MyContext) });
+        await ctx.reply((ctx as any).t("leveled-up", { level: String(p.level) }), { reply_markup: mainKb(ctx as any) });
       }
       return;
     }
 
     // not found yet — show current map
-    await ctx.reply(renderFullMap(q), { reply_markup: questKb(ctx as MyContext) });
+    await ctx.reply(renderMap(q), { reply_markup: questKb(ctx as any) });
   }
 );
 
 // ================== Commands menu =============
 async function setMyCommands() {
-  // remove any previous commands to avoid conflicts
+  // clear & set localized menus
   await bot.api.deleteMyCommands().catch(()=>{});
   await bot.api.deleteMyCommands({ language_code: "en" }).catch(()=>{});
   await bot.api.deleteMyCommands({ language_code: "uk" }).catch(()=>{});
@@ -656,5 +674,5 @@ async function setMyCommands() {
 // ================== Start ======================
 bot.start().then(async () => {
   await setMyCommands();
-  console.log(`🚀 Bot is running (long polling)… v${VERSION}`);
+  console.log(`🚀 Server started — Telegram bot v${VERSION} (long polling)`);
 });

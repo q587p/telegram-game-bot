@@ -1,4 +1,3 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-npm run typecheck || exit 1
+set -e
+npm run typecheck

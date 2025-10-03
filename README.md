@@ -1,11 +1,5 @@
-# Telegram Game Bot (0.0.18)
+# Telegram Game Bot (0.0.20)
 
-- EN/UK i18n (Fluent `.ftl`)
-- Commands: `/tutorial`, `/me`, `/help`, `/lang` (hidden: `/restore`, `/restart`, `/changelog`, `/fixmenu`)
-- Inline: **🧙 Me**, **🗺 Quest**; in-quest **Lurking**, movement, surrender
-- Seeded quests; fog ⬛; floor 🟫; walls 🧱; shard 🔮
-- Energy auto-regen (+1/min) only outside quests
-- Skills: **Lurking**, **Moving** (tiered growth every 13); first unlock banner (localized)
-- XP curve: 13 × (level+1); +1 XP per shard
-- Persistent sessions
-- Version ping: users get “we updated to vX.Y.Z” on next interaction
+- Console banner: “Server started — Telegram bot vX.Y.Z (long polling)”.
+- Walls UX: on boundary bump, map shifts visually and shows a virtual wall outside the grid.
+- Everything else as in 0.0.19 (EN/UK i18n, inline buttons, seeded quests, energy regen, skills, persisted sessions).
