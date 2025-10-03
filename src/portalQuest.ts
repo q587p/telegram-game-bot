@@ -13,7 +13,7 @@ export function startPortalQuest(p: Profile): PortalQuest {
   if (cx===px && cy===py) cx=(cx+1)%GRID_SIZE;
   const seen:boolean[][]=Array.from({length:GRID_SIZE},()=>Array.from({length:GRID_SIZE},()=>false));
   seen[py][px]=true;
-  return { active:true, gridSize:GRID_SIZE, px, py, cx, cy, seed, seen, moves:0 };
+  return { active:true, gridSize:GRID_SIZE, px, py, cx, cy, seed, seen, moves:0, bumpDir: undefined };
 }
 
 export function renderMap(q: PortalQuest): string {
@@ -26,13 +26,23 @@ export function renderMap(q: PortalQuest): string {
   return rows.join("\n");
 }
 
-export function look(q: PortalQuest){ q.moves+=1; for(let yy=q.py-1; yy<=q.py+1; yy++){ for(let xx=q.px-1; xx<=q.px+1; xx++){ if(xx>=0&&yy>=0&&xx<q.gridSize&&yy<q.gridSize) q.seen[yy][xx]=true; } } q.bumpDir=undefined; }
+export function look(q: PortalQuest){
+  q.moves+=1;
+  for(let yy=q.py-1; yy<=q.py+1; yy++){
+    for(let xx=q.px-1; xx<=q.px+1; xx++){
+      if(xx>=0&&yy>=0&&xx<q.gridSize&&yy<q.gridSize) q.seen[yy][xx]=true;
+    }
+  }
+  // keep bumpDir until a successful move
+}
+
 export function move(q: PortalQuest, dir:"up"|"down"|"left"|"right"): boolean {
-  q.moves+=1; q.bumpDir=undefined; let moved=false;
+  q.moves+=1;
+  let moved=false;
   if(dir==="up"){ if(q.py>0){ q.py-=1; moved=true; } else q.bumpDir="up"; }
   else if(dir==="down"){ if(q.py<q.gridSize-1){ q.py+=1; moved=true; } else q.bumpDir="down"; }
   else if(dir==="left"){ if(q.px>0){ q.px-=1; moved=true; } else q.bumpDir="left"; }
   else if(dir==="right"){ if(q.px<q.gridSize-1){ q.px+=1; moved=true; } else q.bumpDir="right"; }
-  if(moved) q.seen[q.py][q.px]=true;
+  if(moved){ q.seen[q.py][q.px]=true; q.bumpDir=undefined; }
   return moved;
 }

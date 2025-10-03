@@ -1,4 +1,5 @@
 # Changelog
 
-## 0.0.21
-- Modularization, RNG quest pool (lore/nonsense/ether/portal), ether resource, shard mini-quest 5×5, skill gains 0.2 with milestones, average moves, tutorial tail update, startup banner, shutdown broadcast.
+## 0.0.22
+- Persistent wall-bump viewport across moves until a successful step.
+- CI: tolerate missing lockfile (`npm ci || npm i`).
